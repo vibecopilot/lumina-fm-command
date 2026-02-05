@@ -284,6 +284,8 @@ const assetCategories = {
 // Generate Assets
 export const assets: Asset[] = sites.flatMap(site => {
   const siteBlocks = blocks.filter(b => b.site_id === site.id);
+  if (siteBlocks.length === 0) return [];
+  
   const assetsPerSite = Math.floor(site.total_assets / 10); // Reduced for performance
   
   return Array.from({ length: assetsPerSite }, (_, i) => {
@@ -341,6 +343,7 @@ const ticketCategories = {
 export const tickets: Ticket[] = sites.flatMap(site => {
   const ticketCount = randomBetween(20, 60);
   const siteBlocks = blocks.filter(b => b.site_id === site.id);
+  if (siteBlocks.length === 0) return [];
   
   return Array.from({ length: ticketCount }, (_, i) => {
     const category = Object.keys(ticketCategories)[i % Object.keys(ticketCategories).length];
@@ -401,6 +404,8 @@ export const ppmTasks: PPMTask[] = sites.flatMap(site => {
   const taskCount = randomBetween(15, 40);
   const siteBlocks = blocks.filter(b => b.site_id === site.id);
   const siteAssets = assets.filter(a => a.site_id === site.id);
+  
+  if (siteBlocks.length === 0 || siteAssets.length === 0) return [];
 
   return Array.from({ length: taskCount }, (_, i) => {
     const asset = siteAssets[i % siteAssets.length];
@@ -413,9 +418,9 @@ export const ppmTasks: PPMTask[] = sites.flatMap(site => {
       id: `${site.id}-PPM${String(i + 1).padStart(4, '0')}`,
       site_id: site.id,
       block_id: block.id,
-      asset_id: asset?.id || `${site.id}-AST0001`,
-      category: asset?.category || 'HVAC',
-      type: asset?.type || 'General Maintenance',
+      asset_id: asset.id,
+      category: asset.category,
+      type: asset.type,
       scheduled_date: new Date(Date.now() - scheduledDaysAgo * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       completed_date: status === 'completed' ? new Date(Date.now() - (scheduledDaysAgo - randomBetween(0, 5)) * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null,
       status,
