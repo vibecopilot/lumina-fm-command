@@ -2,95 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Enterprise IFM Command Center Design System
+   Inspired by Tableau / Looker BI dashboards
+   Light mode only, navy/steel accents
 */
 
 @layer base {
   :root {
+    /* Core Background - Pure White */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 215 28% 17%;
 
+    /* Navy Primary */
+    --primary: 213 56% 24%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Steel Secondary */
+    --secondary: 214 14% 95%;
+    --secondary-foreground: 215 28% 17%;
+
+    /* Muted - Light Steel */
+    --muted: 214 14% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Cards */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 28% 17%;
 
+    /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 215 28% 17%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Accent - Light Navy */
+    --accent: 213 40% 94%;
+    --accent-foreground: 213 56% 24%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Status Colors - Enterprise BI */
+    --status-healthy: 142 71% 45%;
+    --status-healthy-bg: 142 76% 95%;
+    --status-healthy-foreground: 142 71% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --status-warning: 38 92% 50%;
+    --status-warning-bg: 38 100% 95%;
+    --status-warning-foreground: 38 92% 30%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --status-critical: 0 84% 60%;
+    --status-critical-bg: 0 86% 97%;
+    --status-critical-foreground: 0 84% 40%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Borders & Inputs */
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
+    --ring: 213 56% 24%;
 
-    --radius: 0.5rem;
+    --radius: 0.375rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Chart Colors */
+    --chart-1: 213 56% 24%;
+    --chart-2: 213 40% 45%;
+    --chart-3: 213 30% 60%;
+    --chart-4: 213 20% 75%;
+    --chart-5: 213 10% 85%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* KPI Specific */
+    --kpi-bg: 0 0% 100%;
+    --kpi-border: 214 20% 92%;
+    --kpi-trend-up: 142 71% 45%;
+    --kpi-trend-down: 0 84% 60%;
 
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    /* Sidebar */
+    --sidebar-background: 214 14% 98%;
+    --sidebar-foreground: 215 28% 17%;
+    --sidebar-primary: 213 56% 24%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 214 14% 95%;
+    --sidebar-accent-foreground: 215 28% 17%;
+    --sidebar-border: 214 20% 90%;
+    --sidebar-ring: 213 56% 24%;
+
+    /* Slide-over Panel */
+    --panel-overlay: 215 28% 17%;
+    --panel-bg: 0 0% 100%;
+    --panel-header: 214 14% 98%;
   }
 }
 
@@ -100,6 +97,89 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  /* Data-dense table styling */
+  .data-table {
+    @apply text-sm;
+  }
+
+  .data-table th {
+    @apply bg-muted/50 font-semibold text-muted-foreground uppercase text-xs tracking-wider;
+  }
+
+  .data-table td {
+    @apply py-2 px-3;
+  }
+
+  /* KPI Card Animations */
+  .kpi-card {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .kpi-card:hover {
+    @apply shadow-md -translate-y-0.5;
+  }
+
+  /* Status Badges */
+  .status-healthy {
+    @apply bg-[hsl(var(--status-healthy-bg))] text-[hsl(var(--status-healthy-foreground))] border border-[hsl(var(--status-healthy)/0.3)];
+  }
+
+  .status-warning {
+    @apply bg-[hsl(var(--status-warning-bg))] text-[hsl(var(--status-warning-foreground))] border border-[hsl(var(--status-warning)/0.3)];
+  }
+
+  .status-critical {
+    @apply bg-[hsl(var(--status-critical-bg))] text-[hsl(var(--status-critical-foreground))] border border-[hsl(var(--status-critical)/0.3)];
+  }
+
+  /* Health Score Indicators */
+  .health-excellent {
+    @apply text-[hsl(var(--status-healthy))];
+  }
+
+  .health-moderate {
+    @apply text-[hsl(var(--status-warning))];
+  }
+
+  .health-critical {
+    @apply text-[hsl(var(--status-critical))];
+  }
+
+  /* Scrollbar Styling */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted/30;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+
+  /* Panel Transitions */
+  .slide-over-enter {
+    @apply translate-x-full opacity-0;
+  }
+
+  .slide-over-enter-active {
+    @apply translate-x-0 opacity-100 transition-all duration-300 ease-out;
+  }
+
+  .slide-over-exit {
+    @apply translate-x-0 opacity-100;
+  }
+
+  .slide-over-exit-active {
+    @apply translate-x-full opacity-0 transition-all duration-200 ease-in;
   }
 }
