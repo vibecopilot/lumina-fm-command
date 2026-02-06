@@ -421,6 +421,9 @@ export function SlideOverPanel() {
   if (!slideOver.isOpen) return null;
 
   const renderContent = () => {
+    if (!slideOver.data) {
+      return <div className="text-sm text-muted-foreground">No details available</div>;
+    }
     switch (slideOver.type) {
       case 'site':
         return <SiteDetailPanel site={slideOver.data as Site} />;
