@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useCallback, ReactNode } fr
 import { UserRole, Site, Ticket, Asset, Vendor, Alert } from '@/data/mockData';
 
 export interface FilterState {
+  to_date: unknown;
+  from_date: unknown;
   date_range: 'today' | 'week' | 'month' | 'quarter' | 'year' | 'custom';
   custom_start?: string;
   custom_end?: string;
@@ -16,9 +18,15 @@ export interface FilterState {
   compliance_status: string | null;
 }
 
+export type SlideOverType =
+  | 'site' | 'ticket' | 'asset' | 'vendor' | 'ppm' | 'workforce' | 'visitor' | 'compliance' | 'alert'
+  | 'kpi_ticket_sla' | 'kpi_ppm' | 'kpi_asset' | 'kpi_workforce' | 'kpi_vendor_sla' | 'kpi_visitors' | 'kpi_avg_resolution'
+  | 'drill_asset' | 'drill_workforce' | 'drill_site' | 'drill_ppm' | 'drill_visitors'
+  | null;
+
 interface SlideOverState {
   isOpen: boolean;
-  type: 'site' | 'ticket' | 'asset' | 'vendor' | 'ppm' | 'workforce' | 'visitor' | 'compliance' | 'alert' | null;
+  type: SlideOverType;
   data: Site | Ticket | Asset | Vendor | Alert | Record<string, unknown> | null;
 }
 
@@ -35,7 +43,7 @@ interface DashboardContextType {
   
   // Slide-over Panel
   slideOver: SlideOverState;
-  openSlideOver: (type: SlideOverState['type'], data: SlideOverState['data']) => void;
+  openSlideOver: (type: SlideOverType, data: SlideOverState['data']) => void;
   closeSlideOver: () => void;
   
   // Alerts
@@ -56,6 +64,8 @@ const defaultFilters: FilterState = {
   vendor_id: null,
   sla_status: null,
   compliance_status: null,
+  to_date: undefined,
+  from_date: undefined
 };
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -79,7 +89,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setFilters(defaultFilters);
   }, []);
 
-  const openSlideOver = useCallback((type: SlideOverState['type'], data: SlideOverState['data']) => {
+  const openSlideOver = useCallback((type: SlideOverType, data: SlideOverState['data']) => {
     setSlideOver({ isOpen: true, type, data });
   }, []);
 
@@ -110,6 +120,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useDashboard() {
   const context = useContext(DashboardContext);
   if (context === undefined) {

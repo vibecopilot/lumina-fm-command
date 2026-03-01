@@ -6,6 +6,17 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Site, Ticket, Asset, Vendor, Alert, blocks, tickets, assets, ppmTasks, workforce } from '@/data/mockData';
+import {
+  TicketSLAPanel,
+  PPMCompliancePanel,
+  AssetHealthPanel,
+  WorkforcePanel,
+  VendorSLAPanel,
+  VisitorsTodayPanel,
+  AvgResolutionPanel,
+} from './KPIDetailPanels';
+import { AssetDrillPanel, WorkforceDrillPanel, PPMDrillPanel, VisitorDrillPanel } from './DrillDownPanels';
+import { SiteDrillPanel } from './SiteDrillPanel';
 
 function SiteDetailPanel({ site }: { site: Site }) {
   const siteBlocks = blocks.filter(b => b.site_id === site.id);
@@ -20,7 +31,6 @@ function SiteDetailPanel({ site }: { site: Site }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="space-y-3">
         <div className="flex items-start justify-between">
           <div>
@@ -44,7 +54,6 @@ function SiteDetailPanel({ site }: { site: Site }) {
 
       <Separator />
 
-      {/* Quick Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-muted/50 rounded-lg p-3">
           <div className="text-xs text-muted-foreground mb-1">Open Tickets</div>
@@ -67,18 +76,17 @@ function SiteDetailPanel({ site }: { site: Site }) {
 
       <Separator />
 
-      {/* Buildings */}
       <div>
         <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
           <Building2 className="h-4 w-4" />
-          Buildings ({siteBlocks.length})
+          Blocks ({siteBlocks.length})
         </h4>
         <div className="space-y-2">
           {siteBlocks.map(block => (
             <div key={block.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
               <div>
                 <div className="text-sm font-medium">{block.name}</div>
-                <div className="text-xs text-muted-foreground">{block.floors} floors • {block.tenants} tenants</div>
+                <div className="text-xs text-muted-foreground">{block.floors} levels • {block.tenants} units</div>
               </div>
               <Badge variant="outline" className={cn(
                 'text-2xs',
@@ -95,7 +103,6 @@ function SiteDetailPanel({ site }: { site: Site }) {
 
       <Separator />
 
-      {/* Assets Summary */}
       <div>
         <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
           <Wrench className="h-4 w-4" />
@@ -123,7 +130,6 @@ function SiteDetailPanel({ site }: { site: Site }) {
 
       <Separator />
 
-      {/* Recent Tickets */}
       <div>
         <h4 className="text-sm font-semibold mb-3">Recent Tickets</h4>
         <div className="space-y-2">
@@ -221,7 +227,6 @@ function TicketDetailPanel({ ticket }: { ticket: Ticket }) {
 
       <Separator />
 
-      {/* Timeline */}
       <div>
         <h4 className="text-sm font-semibold mb-3">Timeline</h4>
         <div className="space-y-3">
@@ -256,7 +261,7 @@ function TicketDetailPanel({ ticket }: { ticket: Ticket }) {
 
 function AssetDetailPanel({ asset }: { asset: Asset }) {
   const assetPPM = ppmTasks.filter(p => p.asset_id === asset.id);
-  
+
   return (
     <div className="space-y-6">
       <div className="space-y-3">
@@ -308,16 +313,6 @@ function AssetDetailPanel({ asset }: { asset: Asset }) {
           <div>
             <div className="text-xs text-muted-foreground mb-1">Model</div>
             <div className="text-sm font-medium">{asset.model}</div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="text-xs text-muted-foreground mb-1">Location</div>
-            <div className="text-sm font-medium">{asset.location}</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground mb-1">Age</div>
-            <div className="text-sm font-medium">{asset.age_years} years</div>
           </div>
         </div>
       </div>
@@ -415,15 +410,55 @@ function AlertDetailPanel({ alert }: { alert: Alert }) {
   );
 }
 
+const KPI_TITLES: Record<string, string> = {
+  kpi_ticket_sla: 'Ticket SLA Health',
+  kpi_ppm: 'PPM Compliance',
+  kpi_asset: 'Asset Health',
+  kpi_workforce: 'Workforce Availability',
+  kpi_vendor_sla: 'Vendor SLA',
+  kpi_visitors: 'Visitors Today',
+  kpi_avg_resolution: 'Avg Resolution Time',
+  drill_asset: 'Asset Drill-down',
+  drill_workforce: 'Workforce Drill-down',
+  drill_site: 'Site Details',
+  drill_ppm: 'PPM Drill-down',
+  drill_visitors: 'Visitor Details',
+};
+
+const KPI_PANEL_COMPONENTS: Record<string, React.ComponentType> = {
+  kpi_ticket_sla: TicketSLAPanel,
+  kpi_ppm: PPMCompliancePanel,
+  kpi_asset: AssetHealthPanel,
+  kpi_workforce: WorkforcePanel,
+  kpi_vendor_sla: VendorSLAPanel,
+  kpi_visitors: VisitorsTodayPanel,
+  kpi_avg_resolution: AvgResolutionPanel,
+  drill_asset: AssetDrillPanel,
+  drill_workforce: WorkforceDrillPanel,
+  drill_site: SiteDrillPanel,
+  drill_ppm: PPMDrillPanel,
+  drill_visitors: VisitorDrillPanel,
+};
+
 export function SlideOverPanel() {
   const { slideOver, closeSlideOver } = useDashboard();
 
   if (!slideOver.isOpen) return null;
 
+  const isKpiPanel = slideOver.type?.startsWith('kpi_') || slideOver.type === 'drill_asset' || slideOver.type === 'drill_workforce' || slideOver.type === 'drill_site' || slideOver.type === 'drill_ppm' || slideOver.type === 'drill_visitors';
+  const isWidePanel = slideOver.type === 'drill_visitors';
+  const panelWidth = isKpiPanel ? (isWidePanel ? 'w-[720px] max-w-[95vw]' : 'w-[600px]') : 'w-[480px]';
+
   const renderContent = () => {
-    if (!slideOver.data) {
+    if (!slideOver.data && !isKpiPanel) {
       return <div className="text-sm text-muted-foreground">No details available</div>;
     }
+
+    if ((isKpiPanel || slideOver.type === 'drill_asset' || slideOver.type === 'drill_workforce' || slideOver.type === 'drill_site' || slideOver.type === 'drill_ppm' || slideOver.type === 'drill_visitors') && slideOver.type) {
+      const PanelComponent = KPI_PANEL_COMPONENTS[slideOver.type];
+      if (PanelComponent) return <PanelComponent />;
+    }
+
     switch (slideOver.type) {
       case 'site':
         return <SiteDetailPanel site={slideOver.data as Site} />;
@@ -439,6 +474,9 @@ export function SlideOverPanel() {
   };
 
   const getTitle = () => {
+    if (slideOver.type && KPI_TITLES[slideOver.type]) {
+      return KPI_TITLES[slideOver.type];
+    }
     switch (slideOver.type) {
       case 'site': return 'Site Details';
       case 'ticket': return 'Ticket Details';
@@ -456,13 +494,13 @@ export function SlideOverPanel() {
   return (
     <>
       {/* Overlay */}
-      <div 
+      <div
         className="fixed inset-0 bg-panel-overlay/20 z-50 animate-fade-in"
         onClick={closeSlideOver}
       />
-      
+
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-[480px] bg-panel-bg border-l shadow-xl z-50 animate-slide-in-right">
+      <div className={`fixed right-0 top-0 h-full ${panelWidth} bg-panel-bg border-l shadow-xl z-50 animate-slide-in-right`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 bg-panel-header border-b">
           <h2 className="text-sm font-semibold">{getTitle()}</h2>
@@ -473,7 +511,7 @@ export function SlideOverPanel() {
 
         {/* Content */}
         <ScrollArea className="h-[calc(100%-57px)]">
-          <div className="p-4">
+          <div className="p-4 min-w-0 overflow-x-hidden">
             {renderContent()}
           </div>
         </ScrollArea>

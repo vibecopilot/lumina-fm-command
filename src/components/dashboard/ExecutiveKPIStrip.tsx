@@ -1,133 +1,279 @@
-import { useDashboard } from '@/contexts/DashboardContext';
-import { KPICard } from './KPICard';
-import { kpiSummary } from '@/data/mockData';
-import { 
-  Ticket, 
-  ClipboardCheck, 
-  Wrench, 
-  Users, 
-  Building2, 
-  Shield, 
-  UserCheck, 
-  Clock 
-} from 'lucide-react';
+import { useDashboard } from "@/contexts/DashboardContext";
+import { KPICard } from "./KPICard";
+import { useDashboardKPIs } from "@/hooks/useGroupedDashboard";
+import { SlideOverType } from "@/contexts/DashboardContext";
+import {
+  Ticket,
+  ClipboardCheck,
+  Wrench,
+  Users,
+  Building2,
+  UserCheck,
+  Clock,
+} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useEffect } from "react";
 
 export function ExecutiveKPIStrip() {
-  const { openSlideOver, currentRole } = useDashboard();
+  const { openSlideOver, currentRole, filters } = useDashboard();
+  const { data, isPending, isError, dataUpdatedAt } = useDashboardKPIs(filters);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const kpis = [
+  useEffect(() => {
+    if (dataUpdatedAt) setLastUpdated(new Date(dataUpdatedAt));
+  }, [dataUpdatedAt]);
+
+  if (isPending || isError || !data?.ticket_sla_health) {
+    return (
+      <section className="py-6 border-b bg-muted/20">
+        <div className="container">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs text-muted-foreground">Loading KPIs…</span>
+          </div>
+          <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const kpis: Array<{
+    title: string;
+    value: number;
+    unit?: string;
+    trend?: number;
+    trendDirection: "up" | "down" | "neutral";
+    trendLabel: string;
+    icon: React.ElementType;
+    status?: "healthy" | "warning" | "critical" | "neutral";
+    breakdown?: { label: string; value: number; status?: "healthy" | "warning" | "critical" | "neutral" }[];
+    kpiType: SlideOverType;
+  }> = [
     {
-      title: 'Ticket SLA Health',
-      value: kpiSummary.ticket_sla_health.value,
-      trend: kpiSummary.ticket_sla_health.trend,
-      trendDirection: kpiSummary.ticket_sla_health.trend_direction,
-      trendLabel: 'vs last month',
+      title: "Ticket SLA Health",
+      value: data.ticket_sla_health.summary.percentage,
+      trend: data.ticket_sla_health.summary.vs_last_period || 0,
+      trendDirection: (data.ticket_sla_health?.summary.vs_last_period >= 0
+        ? "up"
+        : "down") as "up" | "down",
+      trendLabel: "vs last period",
       icon: Ticket,
+      kpiType: "kpi_ticket_sla" as SlideOverType,
       breakdown: [
-        { label: 'Within SLA', value: kpiSummary.ticket_sla_health.within_sla, status: 'healthy' as const },
-        { label: 'At Risk', value: kpiSummary.ticket_sla_health.at_risk, status: 'warning' as const },
-        { label: 'Breached', value: kpiSummary.ticket_sla_health.breached, status: 'critical' as const },
+        {
+          label: "Within SLA",
+          value: data.ticket_sla_health.summary.within_sla,
+          status: "healthy",
+        },
+        {
+          label: "At Risk",
+          value: data.ticket_sla_health.summary.at_risk,
+          status: "warning",
+        },
+        {
+          label: "Breached",
+          value: data.ticket_sla_health.summary.breached,
+          status: "critical",
+        },
       ],
     },
     {
-      title: 'PPM Compliance',
-      value: kpiSummary.ppm_compliance.value,
-      trend: kpiSummary.ppm_compliance.trend,
-      trendDirection: kpiSummary.ppm_compliance.trend_direction,
-      trendLabel: 'vs last month',
+      title: "PPM Compliance",
+      value: data.ppm_compliance.summary.percentage,
+      trend: data.ppm_compliance.summary.vs_last_period || 0,
+      trendDirection: (data.ppm_compliance.vs_last_period >= 0
+        ? "up"
+        : "down") as "up" | "down",
+      trendLabel: "vs last period",
       icon: ClipboardCheck,
+      kpiType: "kpi_ppm" as SlideOverType,
       breakdown: [
-        { label: 'Completed', value: kpiSummary.ppm_compliance.completed, status: 'healthy' as const },
-        { label: 'Missed', value: kpiSummary.ppm_compliance.missed, status: 'critical' as const },
-        { label: 'Overdue', value: kpiSummary.ppm_compliance.overdue, status: 'warning' as const },
+        {
+          label: "Completed",
+          value: data.ppm_compliance.summary.completed,
+          status: "healthy",
+        },
+        {
+          label: "Missed",
+          value: data.ppm_compliance.summary.missed,
+          status: "critical",
+        },
+        {
+          label: "Overdue",
+          value: data.ppm_compliance.summary.overdue,
+          status: "warning",
+        },
       ],
     },
     {
-      title: 'Asset Health',
-      value: kpiSummary.asset_health.value,
-      trend: kpiSummary.asset_health.trend,
-      trendDirection: kpiSummary.asset_health.trend_direction,
-      trendLabel: 'vs last month',
+      title: "Asset Health",
+      value: data.asset_health.summary.percentage,
+      trend: data.asset_health.summary.vs_last_period,
+      trendDirection: (data.asset_health.summary.vs_last_period >= 0
+        ? "up"
+        : "down") as "up" | "down",
+      trendLabel: "vs last period",
       icon: Wrench,
+      kpiType: "kpi_asset" as SlideOverType,
       breakdown: [
-        { label: 'Operational', value: kpiSummary.asset_health.operational, status: 'healthy' as const },
-        { label: 'Maintenance', value: kpiSummary.asset_health.maintenance, status: 'warning' as const },
-        { label: 'Critical', value: kpiSummary.asset_health.critical, status: 'critical' as const },
+        {
+          label: "Operational",
+          value: data.asset_health.summary.operational,
+          status: "healthy" as const,
+        },
+        {
+          label: "Maintenance",
+          value: data.asset_health.summary.maintenance,
+          status: "warning" as const,
+        },
+        {
+          label: "Critical",
+          value: data.asset_health.summary.critical,
+          status: "critical" as const,
+        },
       ],
     },
     {
-      title: 'Workforce Availability',
-      value: kpiSummary.workforce_availability.value,
-      trend: kpiSummary.workforce_availability.trend,
-      trendDirection: kpiSummary.workforce_availability.trend_direction,
-      trendLabel: 'vs last month',
+      title: "Workforce Availability",
+      value: data.workforce_availability?.summary.percentage,
+      trend: data.workforce_availability?.summary.vs_yesterday,
+      trendDirection: (data.workforce_availability?.summary.vs_yesterday >= 0
+        ? "up"
+        : "down") as "up" | "down",
+      trendLabel: "vs yesterday",
       icon: Users,
+      kpiType: "kpi_workforce" as SlideOverType,
       breakdown: [
-        { label: 'Present', value: kpiSummary.workforce_availability.present, status: 'healthy' as const },
-        { label: 'Absent', value: kpiSummary.workforce_availability.absent, status: 'critical' as const },
-        { label: 'On Leave', value: kpiSummary.workforce_availability.on_leave, status: 'neutral' as const },
+        {
+          label: "Present",
+          value: data.workforce_availability?.summary.present,
+          status: "healthy" as const,
+        },
+        {
+          label: "Absent",
+          value: data.workforce_availability?.summary.absent,
+          status: "critical" as const,
+        },
       ],
     },
     {
-      title: 'Vendor SLA',
-      value: kpiSummary.vendor_sla.value,
-      trend: kpiSummary.vendor_sla.trend,
-      trendDirection: kpiSummary.vendor_sla.trend_direction,
-      trendLabel: 'vs last month',
+      title: "Vendor SLA",
+      value: data.vendor_sla.summary.percentage,
+      trend: 0,
+      trendDirection: "up" as const,
+      trendLabel: "",
       icon: Building2,
+      kpiType: "kpi_vendor_sla" as SlideOverType,
       breakdown: [
-        { label: 'Compliant', value: kpiSummary.vendor_sla.compliant, status: 'healthy' as const },
-        { label: 'At Risk', value: kpiSummary.vendor_sla.at_risk, status: 'warning' as const },
-        { label: 'Non-Compliant', value: kpiSummary.vendor_sla.non_compliant, status: 'critical' as const },
+        {
+          label: "Compliant",
+          value: data.vendor_sla.summary.compliant,
+          status: "healthy" as const,
+        },
+        {
+          label: "At Risk",
+          value: data.vendor_sla.summary.at_risk,
+          status: "warning" as const,
+        },
+        {
+          label: "Non-Compliant",
+          value: data.vendor_sla.summary.non_compliant,
+          status: "critical" as const,
+        },
       ],
     },
+    // {
+    //   title: "Compliance Score",
+    //   value: data.compliance_score.summary.percentage,
+    //   trend: data.compliance_score.summary.vs_last_period,
+    //   trendDirection: (data.compliance_score.summary.vs_last_period >= 0
+    //     ? "up"
+    //     : "down") as "up" | "down",
+    //   trendLabel: "vs last period",
+    //   icon: Shield,
+    //   breakdown: [
+    //     {
+    //       label: "Compliant",
+    //       value: data.compliance_score.compliant,
+    //       status: "healthy" as const,
+    //     },
+    //     {
+    //       label: "Non-Compliant",
+    //       value: data.compliance_score.non_compliant,
+    //       status: "critical" as const,
+    //     },
+    //     {
+    //       label: "Pending",
+    //       value: data.compliance_score.pending,
+    //       status: "warning" as const,
+    //     },
+    //   ],
+    // },
     {
-      title: 'Compliance Score',
-      value: kpiSummary.compliance_score.value,
-      trend: kpiSummary.compliance_score.trend,
-      trendDirection: kpiSummary.compliance_score.trend_direction,
-      trendLabel: 'vs last month',
-      icon: Shield,
-      breakdown: [
-        { label: 'Compliant', value: kpiSummary.compliance_score.compliant, status: 'healthy' as const },
-        { label: 'Non-Compliant', value: kpiSummary.compliance_score.non_compliant, status: 'critical' as const },
-        { label: 'Pending', value: kpiSummary.compliance_score.pending, status: 'warning' as const },
-      ],
-    },
-    {
-      title: 'Visitors Today',
-      value: kpiSummary.visitors_load.value,
-      unit: '',
-      trend: kpiSummary.visitors_load.trend,
-      trendDirection: kpiSummary.visitors_load.trend_direction,
-      trendLabel: 'vs yesterday',
+      title: "Visitors Today",
+      value: data.visitors_today.summary.currently_inside,
+      unit: "",
+      trend: data.visitors_today.summary.vs_yesterday,
+      trendDirection: (data.visitors_today.summary.vs_yesterday >= 0
+        ? "up"
+        : "down") as "up" | "down",
+      trendLabel: "vs yesterday",
       icon: UserCheck,
-      status: 'neutral' as const,
+      kpiType: "kpi_visitors" as SlideOverType,
+      status: "neutral" as const,
       breakdown: [
-        { label: 'Checked In', value: kpiSummary.visitors_load.checked_in, status: 'healthy' as const },
-        { label: 'Checked Out', value: kpiSummary.visitors_load.checked_out, status: 'neutral' as const },
+        {
+          label: "Checked In",
+          value: data.visitors_today.summary.checked_in,
+          status: "healthy" as const,
+        },
+        {
+          label: "Checked Out",
+          value: data.visitors_today.summary.checked_out,
+          status: "neutral" as const,
+        },
       ],
     },
     {
-      title: 'Avg Resolution Time',
-      value: kpiSummary.avg_resolution_time.value,
-      unit: 'hrs',
-      trend: kpiSummary.avg_resolution_time.trend,
-      trendDirection: kpiSummary.avg_resolution_time.trend_direction,
-      trendLabel: 'vs last month',
+      title: "Avg Resolution Time",
+      value: data.avg_resolution_time.summary.hours,
+      unit: "hrs",
+      trend: data.avg_resolution_time.summary.vs_last_period,
+      trendDirection: (data.avg_resolution_time.summary.vs_last_period <= 0
+        ? "down"
+        : "up") as "up" | "down",
+      trendLabel: "vs last period",
       icon: Clock,
-      status: 'healthy' as const,
+      kpiType: "kpi_avg_resolution" as SlideOverType,
+      status: "healthy" as const,
     },
   ];
 
-  // Filter KPIs based on role
-  const visibleKpis = currentRole === 'ops' 
-    ? kpis.filter(k => !['Vendor SLA', 'Compliance Score'].includes(k.title))
-    : kpis;
+  const visibleKpis =
+    currentRole === "ops"
+      ? kpis.filter(
+          (k) => !["Vendor SLA", "Compliance Score"].includes(k.title),
+        )
+      : kpis;
 
   return (
-    <section className="py-6 border-b bg-muted/20">
+    <section className="py-4 border-b bg-muted/20">
       <div className="container">
+        {/* Strip Header: Last Updated (main Refresh is in GlobalFilterBar) */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Executive KPIs</span>
+            {lastUpdated && (
+              <span className="text-xs text-muted-foreground">
+                · Last updated: {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
           {visibleKpis.map((kpi, idx) => (
             <KPICard
@@ -138,9 +284,13 @@ export function ExecutiveKPIStrip() {
               trend={kpi.trend}
               trendDirection={kpi.trendDirection}
               trendLabel={kpi.trendLabel}
-              status={kpi.status as 'healthy' | 'warning' | 'critical' | undefined}
-              breakdown={kpi.breakdown as { label: string; value: number; status?: 'healthy' | 'warning' | 'critical' | 'neutral' }[] | undefined}
-              onClick={() => openSlideOver('site', null)}
+              status={kpi.status as "healthy" | "warning" | "critical" | undefined}
+              breakdown={
+                kpi.breakdown as
+                  | { label: string; value: number; status?: "healthy" | "warning" | "critical" | "neutral" }[]
+                  | undefined
+              }
+              onClick={() => openSlideOver(kpi.kpiType, null)}
             />
           ))}
         </div>

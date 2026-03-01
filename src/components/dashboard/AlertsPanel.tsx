@@ -32,7 +32,7 @@ export function AlertsPanel() {
   return (
     <>
       {/* Floating Alert Button */}
-      <Button
+      {/* <Button
         onClick={() => setAlertsOpen(true)}
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-40"
         size="icon"
@@ -45,10 +45,10 @@ export function AlertsPanel() {
             {unacknowledgedAlerts}
           </Badge>
         )}
-      </Button>
+      </Button> */}
 
       {/* Alert Panel */}
-      {alertsOpen && (
+      {/* {alertsOpen && (
         <>
           <div 
             className="fixed inset-0 bg-panel-overlay/20 z-50 animate-fade-in"
@@ -105,7 +105,7 @@ export function AlertsPanel() {
             </ScrollArea>
           </div>
         </>
-      )}
+      )} */}
     </>
   );
 }

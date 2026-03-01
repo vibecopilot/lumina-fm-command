@@ -1,4 +1,4 @@
-// Enterprise IFM Command Center - Mock Data Layer
+// Enterprise Horizon Industrial Parks Limited - Mock Data Layer
 // 45+ sites with realistic, consistent data
 
 export type UserRole = 'ceo' | 'fm_head' | 'ops';

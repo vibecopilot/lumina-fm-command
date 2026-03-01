@@ -2,11 +2,13 @@ import { useState, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { SectionHeader } from './SectionHeader';
 import { StatusBadge } from './StatusBadge';
-import { sites, Site } from '@/data/mockData';
+import { useSitePerformance } from '@/hooks/useGroupedDashboard';
+import { SitePerformanceSite } from '@/types/groupedDashboard';
 import { MapPin, ChevronRight, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -16,50 +18,42 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-type SortField = 'name' | 'health_score' | 'sla_compliance' | 'ppm_compliance' | 'open_tickets';
+type SortField = 'name' | 'health_score' | 'sla_percentage' | 'ppm_percentage' | 'open_tickets';
 type SortDirection = 'asc' | 'desc';
 
 export function SitePerformanceOverview() {
   const { openSlideOver, filters } = useDashboard();
+  const { data, isPending: isLoading } = useSitePerformance(filters);
+
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('health_score');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [viewMode, setViewMode] = useState<'table' | 'heatmap'>('table');
 
   const filteredSites = useMemo(() => {
-    let result = [...sites];
+    let result = [...(data?.sites ?? [])];
 
-    // Apply filters
-    if (filters.group_id) {
-      result = result.filter(s => s.group_id === filters.group_id);
-    }
-    if (filters.site_id) {
-      result = result.filter(s => s.id === filters.site_id);
-    }
-
-    // Apply search
     if (search) {
       const searchLower = search.toLowerCase();
-      result = result.filter(s => 
+      result = result.filter(s =>
         s.name.toLowerCase().includes(searchLower) ||
-        s.city.toLowerCase().includes(searchLower) ||
-        s.group_name.toLowerCase().includes(searchLower)
+        (s.city?.toLowerCase().includes(searchLower) ?? false) ||
+        s.group.toLowerCase().includes(searchLower)
       );
     }
 
-    // Apply sort
     result.sort((a, b) => {
       const aVal = a[sortField];
       const bVal = b[sortField];
       const modifier = sortDirection === 'asc' ? 1 : -1;
       if (typeof aVal === 'string') {
-        return aVal.localeCompare(bVal as string) * modifier;
+        return (aVal as string).localeCompare(bVal as string) * modifier;
       }
       return ((aVal as number) - (bVal as number)) * modifier;
     });
 
     return result;
-  }, [sites, filters, search, sortField, sortDirection]);
+  }, [data?.sites, search, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -72,8 +66,8 @@ export function SitePerformanceOverview() {
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return null;
-    return sortDirection === 'asc' ? 
-      <ChevronUp className="h-3 w-3 ml-1" /> : 
+    return sortDirection === 'asc' ?
+      <ChevronUp className="h-3 w-3 ml-1" /> :
       <ChevronDown className="h-3 w-3 ml-1" />;
   };
 
@@ -89,12 +83,14 @@ export function SitePerformanceOverview() {
     return 'critical';
   };
 
+  const totalSites = data?.total_sites ?? 0;
+
   return (
     <section className="py-6">
       <div className="container">
-        <SectionHeader 
+        <SectionHeader
           title="Site Performance Overview"
-          subtitle={`${filteredSites.length} of ${sites.length} sites`}
+          subtitle={isLoading ? 'Loading...' : `${filteredSites.length} of ${totalSites} sites`}
           icon={<MapPin className="h-4 w-4" />}
           actions={
             <div className="flex items-center gap-2">
@@ -129,7 +125,13 @@ export function SitePerformanceOverview() {
           }
         />
 
-        {viewMode === 'table' ? (
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full rounded" />
+            ))}
+          </div>
+        ) : viewMode === 'table' ? (
           <div className="border rounded-lg overflow-hidden">
             <div className="max-h-[400px] overflow-auto">
               <Table className="data-table">
@@ -147,14 +149,14 @@ export function SitePerformanceOverview() {
                         Health <SortIcon field="health_score" />
                       </div>
                     </TableHead>
-                    <TableHead className="text-center cursor-pointer" onClick={() => handleSort('sla_compliance')}>
+                    <TableHead className="text-center cursor-pointer" onClick={() => handleSort('sla_percentage')}>
                       <div className="flex items-center justify-center">
-                        SLA <SortIcon field="sla_compliance" />
+                        SLA <SortIcon field="sla_percentage" />
                       </div>
                     </TableHead>
-                    <TableHead className="text-center cursor-pointer" onClick={() => handleSort('ppm_compliance')}>
+                    <TableHead className="text-center cursor-pointer" onClick={() => handleSort('ppm_percentage')}>
                       <div className="flex items-center justify-center">
-                        PPM <SortIcon field="ppm_compliance" />
+                        PPM <SortIcon field="ppm_percentage" />
                       </div>
                     </TableHead>
                     <TableHead className="text-center cursor-pointer" onClick={() => handleSort('open_tickets')}>
@@ -168,46 +170,46 @@ export function SitePerformanceOverview() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredSites.map((site) => (
-                    <TableRow 
-                      key={site.id} 
+                  {filteredSites.map((site: SitePerformanceSite) => (
+                    <TableRow
+                      key={site.id}
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => openSlideOver('site', site)}
+                      onClick={() => openSlideOver('drill_site', { id: site.id, name: site.name })}
                     >
                       <TableCell className="font-medium">{site.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{site.group_name}</TableCell>
-                      <TableCell className="text-muted-foreground">{site.city}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{site.group}</TableCell>
+                      <TableCell className="text-muted-foreground">{site.city ?? '—'}</TableCell>
                       <TableCell className="text-center">
-                        <StatusBadge 
-                          status={getHealthStatus(site.health_score)} 
-                          label={`${site.health_score}%`} 
+                        <StatusBadge
+                          status={getHealthStatus(site.health_score)}
+                          label={`${site.health_score}%`}
                         />
                       </TableCell>
                       <TableCell className="text-center">
-                        <StatusBadge 
-                          status={getHealthStatus(site.sla_compliance)} 
-                          label={`${site.sla_compliance}%`} 
+                        <StatusBadge
+                          status={getHealthStatus(site.sla_percentage)}
+                          label={`${site.sla_percentage}%`}
                         />
                       </TableCell>
                       <TableCell className="text-center">
-                        <StatusBadge 
-                          status={getHealthStatus(site.ppm_compliance)} 
-                          label={`${site.ppm_compliance}%`} 
+                        <StatusBadge
+                          status={getHealthStatus(site.ppm_percentage)}
+                          label={`${site.ppm_percentage}%`}
                         />
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
                           <span>{site.open_tickets}</span>
-                          {site.critical_tickets > 0 && (
-                            <span className="text-2xs text-critical">({site.critical_tickets})</span>
+                          {site.breached_tickets > 0 && (
+                            <span className="text-2xs text-critical">({site.breached_tickets})</span>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="text-center">{site.total_assets}</TableCell>
                       <TableCell className="text-center">
-                        <StatusBadge 
-                          status={getHealthStatus(site.workforce_availability)} 
-                          label={`${site.workforce_availability}%`} 
+                        <StatusBadge
+                          status={getHealthStatus(site.workforce_percentage)}
+                          label={`${site.workforce_percentage}%`}
                         />
                       </TableCell>
                       <TableCell>
@@ -222,14 +224,14 @@ export function SitePerformanceOverview() {
         ) : (
           <div className="border rounded-lg p-4">
             <div className="grid grid-cols-8 gap-1.5">
-              {filteredSites.map((site) => (
+              {filteredSites.map((site: SitePerformanceSite) => (
                 <div
                   key={site.id}
                   className={cn(
                     'aspect-square rounded-md cursor-pointer transition-all hover:scale-105 flex items-center justify-center',
                     getHealthColor(site.health_score)
                   )}
-                  onClick={() => openSlideOver('site', site)}
+                  onClick={() => openSlideOver('drill_site', { id: site.id, name: site.name })}
                   title={`${site.name} - ${site.health_score}%`}
                 >
                   <span className="text-2xs font-medium text-white opacity-80">
