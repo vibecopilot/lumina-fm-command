@@ -1,67 +1,83 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
-function readParam(searchParams: URLSearchParams, key: string): string | null {
-  const value = searchParams.get(key);
-  return value && value.length > 0 ? value : null;
+interface Props {
+  children: React.ReactNode;
 }
 
-export default function GroupedDashboardPage() {
-  const navigate = useNavigate();
+export default function UrlParamSync({ children }: Props) {
+  const location = useLocation();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const url = new URL(window.location.href);
+    const searchParams = new URLSearchParams(location.search);
 
-    const t = readParam(url.searchParams, 't');
-    const u = readParam(url.searchParams, 'u');
-    const s = readParam(url.searchParams, 's');
+    const t = searchParams.get("t");
+    const u = searchParams.get("u");
+    const s = searchParams.get("s");
 
-    console.log("Token:", t);
-    console.log("User:", u);
-    console.log("Site:", s);
+    console.log("SSO Sync Running");
 
+    // Save token
     if (t) {
-      localStorage.setItem('token', t);
+      localStorage.setItem("token", t);
+      console.log("Token saved:", t);
     }
 
+    // Save user
     if (u) {
       try {
-        const userObject = JSON.parse(decodeURIComponent(u));
-        localStorage.setItem('user_details', JSON.stringify(userObject));
-      } catch (e) {
-        console.error("User parse error", e);
+        const decoded = decodeURIComponent(u);
+        const userObject = JSON.parse(decoded);
+
+        localStorage.setItem(
+          "user_details",
+          JSON.stringify(userObject)
+        );
+
+        console.log("User saved:", userObject);
+
+      } catch (error) {
+        console.error("User parse error:", error);
       }
     }
 
+    // Save site
     if (s) {
-      localStorage.setItem('active_site', s);
+      localStorage.setItem("active_site", s);
+      console.log("Site saved:", s);
     }
 
-    // Remove params safely
-    url.searchParams.delete('t');
-    url.searchParams.delete('u');
-    url.searchParams.delete('s');
+    // Clean URL
+    if (t || u || s) {
+      searchParams.delete("t");
+      searchParams.delete("u");
+      searchParams.delete("s");
 
-    window.history.replaceState(
-      {},
-      document.title,
-      url.pathname
-    );
+      const cleanUrl =
+        location.pathname +
+        (searchParams.toString()
+          ? `?${searchParams.toString()}`
+          : "") +
+        location.hash;
 
-    navigate('/', { replace: true });
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
 
-  }, [navigate]);
+    setReady(true);
 
-  return (
-    <div className="w-full h-screen flex flex-col items-center justify-center bg-gray-900">
-      <div className="text-center p-8 bg-gray-800 rounded-lg shadow-xl">
-        <h2 className="text-2xl font-bold text-white mb-4">
-          Syncing your session…
-        </h2>
-        <p className="text-gray-400 mb-6">
-          Preparing your Grouped Dashboard.
-        </p>
+  }, []);
+
+  // Wait until localStorage is set
+  if (!ready) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-lg">
+          Syncing session...
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return <>{children}</>;
 }
