@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import UrlParamSync from "./components/UrlParamSync";
+import UrlParamSync from "./pages/GroupedDashboardPage";
 
 const queryClient = new QueryClient();
 
