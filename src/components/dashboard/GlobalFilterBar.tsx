@@ -42,7 +42,11 @@ export function GlobalFilterBar() {
   }, [dataUpdatedAt]);
 
   const activeFilterCount = Object.entries(filters).filter(
-    ([key, value]) => value !== null && key !== "date_range",
+    ([key, value]) => {
+      if (value == null) return false;
+      if (key === "date_range") return value !== "month";
+      return true;
+    },
   ).length;
 
   const dateRangeLabels: Record<string, string> = {
@@ -65,9 +69,9 @@ export function GlobalFilterBar() {
                         w-16 h-10 rounded-lg bg-primary shrink-0"
             >
               <img
-                src="/Horizon_White.svg"
+                src="/horizon_industrial_parks_logo.jpeg"
                 alt="Horizon Industrial Parks Limited"
-                className="w-16 h-10 object-contain"
+                // className="w-16 h-10 object-contain"
               />
             </div>
             <div>
@@ -251,8 +255,8 @@ export function GlobalFilterBar() {
           </div>
 
           {/* Right: Role Switcher & Settings */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
+          {/* <div className="flex items-center gap-2"> */}
+          {/* <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5">
               {(["ceo", "fm_head", "ops"] as const).map((role) => (
                 <Button
                   key={role}
@@ -271,11 +275,11 @@ export function GlobalFilterBar() {
                       : "Ops"}
                 </Button>
               ))}
-            </div>
-            {/* <Button variant="ghost" size="icon" className="h-8 w-8">
+            </div> */}
+          {/* <Button variant="ghost" size="icon" className="h-8 w-8">
               <Settings className="h-4 w-4" />
             </Button> */}
-          </div>
+          {/* </div> */}
         </div>
 
         {/* Bottom sub-row: Last Updated + Global Refresh */}
@@ -284,7 +288,7 @@ export function GlobalFilterBar() {
             <span>
               {lastUpdated
                 ? `Last updated: ${lastUpdated.toLocaleTimeString()}`
-                : 'Loading dashboard data…'}
+                : "Loading dashboard data…"}
             </span>
             {isFetching && (
               <RefreshCw className="h-3 w-3 animate-spin text-primary" />

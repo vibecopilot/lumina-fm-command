@@ -55,6 +55,7 @@ export function SitePerformanceOverview() {
     return result;
   }, [data?.sites, search, sortField, sortDirection]);
 
+  console.log('Site Performance Data:', filteredSites);
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -142,7 +143,7 @@ export function SitePerformanceOverview() {
                         Site Name <SortIcon field="name" />
                       </div>
                     </TableHead>
-                    <TableHead>Group</TableHead>
+                    <TableHead>Region</TableHead>
                     <TableHead>City</TableHead>
                     <TableHead className="text-center cursor-pointer" onClick={() => handleSort('health_score')}>
                       <div className="flex items-center justify-center">

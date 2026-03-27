@@ -75,12 +75,12 @@ function filtersToApiParams(
 
     case 'custom':
 
-      from = filters.from_date
-        ? startOfDay(new Date(filters.from_date))
+      from = filters?.from_date
+        ? startOfDay(new Date(filters?.from_date))
         : startOfMonth(now);
 
-      to = filters.to_date
-        ? endOfDay(new Date(filters.to_date))
+      to = filters?.to_date
+        ? endOfDay(new Date(filters?.to_date))
         : endOfDay(now);
 
       break;

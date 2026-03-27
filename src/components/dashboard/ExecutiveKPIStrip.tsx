@@ -23,7 +23,7 @@ export function ExecutiveKPIStrip() {
     if (dataUpdatedAt) setLastUpdated(new Date(dataUpdatedAt));
   }, [dataUpdatedAt]);
 
-  if (isPending || isError || !data?.ticket_sla_health) {
+  if (isPending || isError || !data?.ticket_sla_health?.summary) {
     return (
       <section className="py-6 border-b bg-muted/20">
         <div className="container">
@@ -56,7 +56,7 @@ export function ExecutiveKPIStrip() {
       title: "Ticket SLA Health",
       value: data.ticket_sla_health.summary.percentage,
       trend: data.ticket_sla_health.summary.vs_last_period || 0,
-      trendDirection: (data.ticket_sla_health?.summary.vs_last_period >= 0
+      trendDirection: (data.ticket_sla_health.summary.vs_last_period >= 0
         ? "up"
         : "down") as "up" | "down",
       trendLabel: "vs last period",
@@ -84,7 +84,7 @@ export function ExecutiveKPIStrip() {
       title: "PPM Compliance",
       value: data.ppm_compliance.summary.percentage,
       trend: data.ppm_compliance.summary.vs_last_period || 0,
-      trendDirection: (data.ppm_compliance.vs_last_period >= 0
+      trendDirection: (data.ppm_compliance.summary.vs_last_period >= 0
         ? "up"
         : "down") as "up" | "down",
       trendLabel: "vs last period",
@@ -138,9 +138,9 @@ export function ExecutiveKPIStrip() {
     },
     {
       title: "Workforce Availability",
-      value: data.workforce_availability?.summary.percentage,
-      trend: data.workforce_availability?.summary.vs_yesterday,
-      trendDirection: (data.workforce_availability?.summary.vs_yesterday >= 0
+      value: data.workforce_availability?.summary?.percentage,
+      trend: data.workforce_availability?.summary?.vs_yesterday,
+      trendDirection: (data.workforce_availability?.summary?.vs_yesterday >= 0
         ? "up"
         : "down") as "up" | "down",
       trendLabel: "vs yesterday",
@@ -149,12 +149,12 @@ export function ExecutiveKPIStrip() {
       breakdown: [
         {
           label: "Present",
-          value: data.workforce_availability?.summary.present,
+          value: data.workforce_availability?.summary?.present,
           status: "healthy" as const,
         },
         {
           label: "Absent",
-          value: data.workforce_availability?.summary.absent,
+          value: data.workforce_availability?.summary?.absent,
           status: "critical" as const,
         },
       ],

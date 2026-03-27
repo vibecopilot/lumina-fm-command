@@ -71,7 +71,7 @@ const defaultFilters: FilterState = {
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
-  const [currentRole, setCurrentRole] = useState<UserRole>('fm_head');
+  const [currentRole, setCurrentRole] = useState<UserRole>('ceo');
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [slideOver, setSlideOver] = useState<SlideOverState>({
     isOpen: false,

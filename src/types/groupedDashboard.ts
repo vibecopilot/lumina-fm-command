@@ -23,69 +23,108 @@ export interface OrgAssociatesResponse {
 // GET /api/v1/grouped_dashboard
 export interface DashboardKPIsResponse {
   ticket_sla_health: {
-    summary: any;
-    percentage: number;
-    within_sla: number;
-    at_risk: number;
-    breached: number;
-    total: number;
-    vs_last_period: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_last_period: number;
+      within_sla: number;
+      prev_within_sla: number;
+      at_risk: number;
+      prev_at_risk: number;
+      breached: number;
+      prev_breached: number;
+      total: number;
+      prev_total: number;
+    };
+    records: any;
   };
   ppm_compliance: {
-    summary: any;
-    percentage: number;
-    completed: number;
-    missed: number;
-    overdue: number;
-    total_scheduled: number;
-    vs_last_period: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_last_period: number;
+      completed: number;
+      prev_completed: number;
+      missed: number;
+      prev_missed: number;
+      overdue: number;
+      prev_overdue: number;
+      total_scheduled: number;
+      prev_total_scheduled: number;
+    };
+    records: any;
   };
   asset_health: {
-    summary: any;
-    percentage: number;
-    operational: number;
-    maintenance: number;
-    critical: number;
-    offline: number;
-    total: number;
-    vs_last_period: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_last_period: number;
+      operational: number;
+      prev_operational: number;
+      maintenance: number;
+      critical: number;
+      offline: number;
+      total: number;
+      prev_total: number;
+    };
+    records: any;
   };
   workforce_availability: {
-    summary: any;
-    percentage: number;
-    present: number;
-    absent: number;
-    total: number;
-    vs_yesterday: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_yesterday: number;
+      present: number;
+      prev_present: number;
+      absent: number;
+      prev_absent: number;
+      total: number;
+    };
+    records: any;
   };
   vendor_sla: {
-    summary: any;
-    percentage: number;
-    compliant: number;
-    at_risk: number;
-    non_compliant: number;
-    total: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_last_period: number;
+      compliant: number;
+      at_risk: number;
+      non_compliant: number;
+      total: number;
+    };
+    records: any;
   };
   compliance_score: {
-    summary: any;
-    percentage: number;
-    compliant: number;
-    non_compliant: number;
-    pending: number;
-    total: number;
-    vs_last_period: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_last_period: number;
+      compliant: number;
+      prev_compliant: number;
+      non_compliant: number;
+      pending: number;
+      total: number;
+      prev_total: number;
+    };
+    records: any;
   };
   visitors_today: {
-    summary: any;
-    checked_in: number;
-    checked_out: number;
-    currently_inside: number;
-    vs_yesterday: number;
+    summary: {
+      checked_in: number;
+      prev_checked_in: number;
+      checked_out: number;
+      currently_inside: number;
+      vs_yesterday: number;
+    };
+    records: any;
   };
   avg_resolution_time: {
-    summary: any;
-    hours: number;
-    vs_last_period: number;
+    summary: {
+      hours: number;
+      prev_hours: number;
+      vs_last_period: number;
+    };
+    records: any;
   };
 }
 
