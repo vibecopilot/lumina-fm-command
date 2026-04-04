@@ -45,6 +45,8 @@ export interface DashboardKPIsResponse {
       vs_last_period: number;
       completed: number;
       prev_completed: number;
+      pending: number;
+      prev_pending: number;
       missed: number;
       prev_missed: number;
       overdue: number;
