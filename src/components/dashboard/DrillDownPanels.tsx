@@ -103,6 +103,9 @@ export function AssetDrillPanel() {
     ? `Assets — ${data.value.charAt(0).toUpperCase() + data.value.slice(1)}`
     : `Assets — Category: ${data.value}`;
 
+  // Use summary from API if available, otherwise fall back to counting records
+  const summary = drillData?.summary;
+
   return (
     <div>
       <PanelHeader
@@ -114,38 +117,46 @@ export function AssetDrillPanel() {
         onExport={handleExport}
       />
 
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-4 gap-2 mb-4">
         <div className="bg-muted/40 rounded-lg p-3">
           <div className="text-xs text-muted-foreground mb-0.5">Total</div>
-          <div className="text-xl font-bold">{drillData?.total ?? 0}</div>
+          <div className="text-xl font-bold">{summary?.total ?? drillData?.total ?? 0}</div>
         </div>
-        {statusCounts.length > 0 && (
-          statusCounts.slice(0, 2).map((s, i) => (
-            <div key={i} className="bg-muted/40 rounded-lg p-3">
-              <div className="text-xs text-muted-foreground mb-0.5">{s.name}</div>
-              <div className={cn('text-xl font-bold', s.name === 'operational' && 'text-healthy', s.name === 'maintenance' && 'text-warning', s.name === 'critical' && 'text-critical')}>{s.count}</div>
-            </div>
-          ))
-        )}
+        <div className="bg-healthy/10 rounded-lg p-3">
+          <div className="text-xs text-muted-foreground mb-0.5">Operational</div>
+          <div className="text-xl font-bold text-healthy">{summary?.operational ?? statusCounts.find(s => s.name === 'operational')?.count ?? 0}</div>
+        </div>
+        <div className="bg-warning/10 rounded-lg p-3">
+          <div className="text-xs text-muted-foreground mb-0.5">Maintenance</div>
+          <div className="text-xl font-bold text-warning">{summary?.maintenance ?? statusCounts.find(s => s.name === 'maintenance')?.count ?? 0}</div>
+        </div>
+        <div className="bg-critical/10 rounded-lg p-3">
+          <div className="text-xs text-muted-foreground mb-0.5">Critical</div>
+          <div className="text-xl font-bold text-critical">{summary?.critical ?? statusCounts.find(s => s.name === 'critical')?.count ?? 0}</div>
+        </div>
       </div>
 
-      {statusCounts.length > 0 && (
-        <>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Status Distribution</h4>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={statusCounts}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Bar dataKey="count" name="Assets" radius={[4, 4, 0, 0]}>
-                {statusCounts.map((entry, i) => (
-                  <Cell key={i} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </>
+      {summary?.health_percentage !== undefined && (
+        <div className="mb-4 p-3 bg-muted/30 rounded-lg">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span>Health Score</span>
+            <span className={cn(
+              'font-medium',
+              summary.health_percentage >= 85 ? 'text-healthy' : summary.health_percentage >= 70 ? 'text-warning' : 'text-critical'
+            )}>
+              {summary.health_percentage}%
+            </span>
+          </div>
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all',
+                summary.health_percentage >= 85 ? 'bg-healthy' : summary.health_percentage >= 70 ? 'bg-warning' : 'bg-critical'
+              )}
+              style={{ width: `${summary.health_percentage}%` }}
+            />
+          </div>
+        </div>
       )}
 
       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 mt-4">Asset List</h4>

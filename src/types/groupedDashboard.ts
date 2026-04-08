@@ -342,6 +342,14 @@ export interface AssetDrillResponse {
   drill_type: 'status' | 'category';
   filter_value: string;
   total: number;
+  summary?: {
+    total: number;
+    operational: number;
+    maintenance: number;
+    critical: number;
+    offline: number;
+    health_percentage: number;
+  };
   records: AssetDrillRecord[];
 }
 
