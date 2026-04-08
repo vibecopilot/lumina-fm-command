@@ -139,6 +139,7 @@ export interface SiteDrillResponse {
     ppm_percentage: number;
     workforce_percentage: number;
     open_tickets: number;
+    pending_tickets: number;
     breached_tickets: number;
     total_tickets: number;
     total_assets: number;
@@ -146,7 +147,7 @@ export interface SiteDrillResponse {
   };
   blocks: { id: number; name: string; floor_no?: string; floor_count: number; units_count: number }[];
   tickets: {
-    summary: { total: number; open: number; breached: number; sla_percentage: number };
+    summary: { total: number; open: number; pending: number; breached: number; sla_percentage: number };
     recent: {
       id: number;
       ticket_number: string;
@@ -190,6 +191,7 @@ export interface SitePerformanceSite {
   sla_percentage: number;
   ppm_percentage: number;
   open_tickets: number;
+  pending_tickets: number;
   breached_tickets: number;
   total_assets: number;
   workforce_percentage: number;

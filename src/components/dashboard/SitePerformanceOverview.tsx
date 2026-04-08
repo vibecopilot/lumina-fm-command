@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-type SortField = 'name' | 'health_score' | 'sla_percentage' | 'ppm_percentage' | 'open_tickets';
+type SortField = 'name' | 'health_score' | 'sla_percentage' | 'ppm_percentage' | 'pending_tickets';
 type SortDirection = 'asc' | 'desc';
 
 export function SitePerformanceOverview() {
@@ -160,9 +160,9 @@ export function SitePerformanceOverview() {
                         PPM <SortIcon field="ppm_percentage" />
                       </div>
                     </TableHead>
-                    <TableHead className="text-center cursor-pointer" onClick={() => handleSort('open_tickets')}>
+                    <TableHead className="text-center cursor-pointer" onClick={() => handleSort('pending_tickets')}>
                       <div className="flex items-center justify-center">
-                        Tickets <SortIcon field="open_tickets" />
+                        Pending Tickets <SortIcon field="pending_tickets" />
                       </div>
                     </TableHead>
                     <TableHead className="text-center">Assets</TableHead>
@@ -200,10 +200,7 @@ export function SitePerformanceOverview() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <span>{site.open_tickets}</span>
-                          {site.breached_tickets > 0 && (
-                            <span className="text-2xs text-critical">({site.breached_tickets})</span>
-                          )}
+                          <span>{site.pending_tickets ?? 0}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">{site.total_assets}</TableCell>
