@@ -5,7 +5,7 @@ import { StatusBadge } from './StatusBadge';
 import { useSitePerformance } from '@/hooks/useGroupedDashboard';
 import { SitePerformanceSite } from '@/types/groupedDashboard';
 import { MapPin, ChevronRight, ChevronDown, ChevronUp, Search } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, safeNumber } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -182,32 +182,32 @@ export function SitePerformanceOverview() {
                       <TableCell className="text-muted-foreground">{site.city ?? '—'}</TableCell>
                       <TableCell className="text-center">
                         <StatusBadge
-                          status={getHealthStatus(site.health_score)}
-                          label={`${site.health_score}%`}
+                          status={getHealthStatus(safeNumber(site.health_score))}
+                          label={`${safeNumber(site.health_score)}%`}
                         />
                       </TableCell>
                       <TableCell className="text-center">
                         <StatusBadge
-                          status={getHealthStatus(site.sla_percentage)}
-                          label={`${site.sla_percentage}%`}
+                          status={getHealthStatus(safeNumber(site.sla_percentage))}
+                          label={`${safeNumber(site.sla_percentage)}%`}
                         />
                       </TableCell>
                       <TableCell className="text-center">
                         <StatusBadge
-                          status={getHealthStatus(site.ppm_percentage)}
-                          label={`${site.ppm_percentage}%`}
+                          status={getHealthStatus(safeNumber(site.ppm_percentage))}
+                          label={`${safeNumber(site.ppm_percentage)}%`}
                         />
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <span>{site.pending_tickets ?? 0}</span>
+                          <span>{safeNumber(site.pending_tickets, 0)}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center">{site.total_assets}</TableCell>
+                      <TableCell className="text-center">{safeNumber(site.total_assets, 0)}</TableCell>
                       <TableCell className="text-center">
                         <StatusBadge
-                          status={getHealthStatus(site.workforce_percentage)}
-                          label={`${site.workforce_percentage}%`}
+                          status={getHealthStatus(safeNumber(site.workforce_percentage))}
+                          label={`${safeNumber(site.workforce_percentage)}%`}
                         />
                       </TableCell>
                       <TableCell>
@@ -227,13 +227,13 @@ export function SitePerformanceOverview() {
                   key={site.id}
                   className={cn(
                     'aspect-square rounded-md cursor-pointer transition-all hover:scale-105 flex items-center justify-center',
-                    getHealthColor(site.health_score)
+                    getHealthColor(safeNumber(site.health_score))
                   )}
                   onClick={() => openSlideOver('drill_site', { id: site.id, name: site.name })}
-                  title={`${site.name} - ${site.health_score}%`}
+                  title={`${site.name} - ${safeNumber(site.health_score)}%`}
                 >
                   <span className="text-2xs font-medium text-white opacity-80">
-                    {site.health_score}
+                    {safeNumber(site.health_score)}
                   </span>
                 </div>
               ))}
