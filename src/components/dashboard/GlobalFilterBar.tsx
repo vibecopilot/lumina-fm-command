@@ -62,18 +62,18 @@ export function GlobalFilterBar() {
         <div className="flex items-center justify-between gap-2">
           {/* Left: Logo & Title */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="flex items-center justify-center w-10 h-8 sm:w-16 sm:h-10 rounded-lg bg-primary shrink-0 overflow-hidden">
+            <div className="flex items-center justify-center w-10 h-8 sm:w-16 sm:h-10 rounded-lg shrink-0 overflow-hidden">
               <img
-                src="/Horizon_White.svg"
+                src="/horizon_industrial_parks_logo.jpeg"
                 alt="Horizon Industrial Parks Limited"
-                className="w-8 h-6 sm:w-12 sm:h-8 object-contain"
+                className="w-14 h-[60px] sm:w-12 sm:h-8 object-contain"
               />
             </div>
             <div className="min-w-0">
               <h1 className="text-sm sm:text-base font-semibold text-foreground leading-tight truncate">
                 Horizon Industrial Parks Limited
               </h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">
+              <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">
                 Enterprise Facility Management
               </p>
             </div>
