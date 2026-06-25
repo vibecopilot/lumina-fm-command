@@ -102,10 +102,10 @@ export function AssetPortfolioHealth() {
                   <div
                     key={cat.category}
                     className="space-y-1.5 cursor-pointer hover:bg-muted/30 rounded-lg p-2 -m-2 transition-colors group"
-                    onClick={() => openSlideOver('drill_ppm', { type: 'category', value: cat.category })}
+                    onClick={() => openSlideOver('drill_asset', { type: 'category', value: cat.category })}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && openSlideOver('drill_ppm', { type: 'category', value: cat.category })}
+                    onKeyDown={(e) => e.key === 'Enter' && openSlideOver('drill_asset', { type: 'category', value: cat.category })}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium group-hover:text-primary transition-colors">{cat.category}</span>

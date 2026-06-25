@@ -1,5 +1,6 @@
+import { useState, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { useSiteDrill } from '@/hooks/useGroupedDashboard';
+import { useSiteDrill, useWorkforceDrill, useAssetDrill, usePPMDrill } from '@/hooks/useGroupedDashboard';
 import {
   BarChart,
   Bar,
@@ -16,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { exportToXLSX } from '@/utils/exportData';
-import { Download, RefreshCw, MapPin, AlertTriangle } from 'lucide-react';
+import { Download, RefreshCw, MapPin, AlertTriangle, X, ChevronRight, ChevronLeft, User, Check, XCircle, Wrench, ClipboardList } from 'lucide-react';
 
 const COLORS = {
   operational: '#22c55e',
@@ -69,10 +70,20 @@ function PanelHeader({
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: string | number; color?: string }) {
+function StatCard({ label, value, color, onClick, active }: { label: string; value: string | number; color?: string; onClick?: () => void; active?: boolean }) {
   return (
-    <div className="bg-muted/40 rounded-lg p-3">
-      <div className="text-xs text-muted-foreground mb-0.5">{label}</div>
+    <div 
+      className={cn(
+        'bg-muted/40 rounded-lg p-3 transition-all',
+        onClick && 'cursor-pointer hover:bg-muted/60 hover:ring-2 hover:ring-primary/30',
+        active && 'ring-2 ring-primary bg-primary/10'
+      )}
+      onClick={onClick}
+    >
+      <div className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1">
+        {label}
+        {onClick && <ChevronRight className="h-3 w-3" />}
+      </div>
       <div className={cn('text-xl font-bold', color)}>{value}</div>
     </div>
   );
@@ -82,6 +93,23 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{children}</h4>;
 }
 
+function FilterHeader({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <div className="flex items-center justify-between mb-3 p-2 bg-primary/10 rounded-md">
+      <span className="text-sm font-medium text-primary">Showing: {label}</span>
+      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={onClear}>
+        <X className="h-3 w-3 mr-1" /> Clear
+      </Button>
+    </div>
+  );
+}
+
+type TicketFilter = 'all' | 'pending' | 'breached' | 'within_sla';
+type AssetFilter = 'all' | 'operational' | 'maintenance' | 'critical' | 'offline';
+type WorkforceFilter = { type: 'vendor' | 'work_type'; value: string } | null;
+
+const RECORDS_PER_PAGE = 10;
+
 export function SiteDrillPanel() {
   const { filters, slideOver } = useDashboard();
   const siteData = slideOver.data as { id: number; name?: string } | null;
@@ -89,6 +117,138 @@ export function SiteDrillPanel() {
 
   const { data, isPending, dataUpdatedAt, refetch, isFetching } = useSiteDrill(filters, siteId);
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+
+  // Filter states for drill-down
+  const [ticketFilter, setTicketFilter] = useState<TicketFilter>('all');
+  const [assetFilter, setAssetFilter] = useState<AssetFilter>('all');
+  const [ppmFilter, setPpmFilter] = useState<string | null>(null);
+  const [workforceFilter, setWorkforceFilter] = useState<WorkforceFilter>(null);
+  const [workforcePage, setWorkforcePage] = useState(1);
+
+  // Create modified filters with the current site_id for workforce drill
+  const siteFilters = useMemo(() => ({
+    ...filters,
+    site_id: siteId?.toString() ?? null,
+  }), [filters, siteId]);
+
+  // Workforce drill data when filter is selected
+  const workforceDrillParams = useMemo(() => {
+    if (!workforceFilter) return {};
+    return workforceFilter.type === 'vendor' 
+      ? { vendor: workforceFilter.value }
+      : { work_type: workforceFilter.value };
+  }, [workforceFilter]);
+
+  const { data: workforceDrillData, isPending: isWorkforceDrillPending } = useWorkforceDrill(
+    siteFilters,
+    workforceDrillParams
+  );
+
+  // Paginated workforce records
+  const paginatedWorkforceRecords = useMemo(() => {
+    if (!workforceDrillData?.records) return [];
+    const start = (workforcePage - 1) * RECORDS_PER_PAGE;
+    return workforceDrillData.records.slice(start, start + RECORDS_PER_PAGE);
+  }, [workforceDrillData?.records, workforcePage]);
+
+  const totalWorkforcePages = useMemo(() => {
+    if (!workforceDrillData?.records) return 0;
+    return Math.ceil(workforceDrillData.records.length / RECORDS_PER_PAGE);
+  }, [workforceDrillData?.records]);
+
+  // Reset page when filter changes
+  const handleWorkforceFilterChange = (filter: WorkforceFilter) => {
+    setWorkforceFilter(filter);
+    setWorkforcePage(1);
+  };
+
+  // Asset drill state and data
+  const [assetPage, setAssetPage] = useState(1);
+
+  const assetDrillParams = useMemo(() => {
+    if (assetFilter === 'all') return {};
+    return { status: assetFilter };
+  }, [assetFilter]);
+
+  const { data: assetDrillData, isPending: isAssetDrillPending } = useAssetDrill(
+    siteFilters,
+    assetDrillParams
+  );
+
+  // Paginated asset records
+  const paginatedAssetRecords = useMemo(() => {
+    if (!assetDrillData?.records) return [];
+    const start = (assetPage - 1) * RECORDS_PER_PAGE;
+    return assetDrillData.records.slice(start, start + RECORDS_PER_PAGE);
+  }, [assetDrillData?.records, assetPage]);
+
+  const totalAssetPages = useMemo(() => {
+    if (!assetDrillData?.records) return 0;
+    return Math.ceil(assetDrillData.records.length / RECORDS_PER_PAGE);
+  }, [assetDrillData?.records]);
+
+  // Reset page when asset filter changes
+  const handleAssetFilterChange = (filter: AssetFilter) => {
+    setAssetFilter(filter);
+    setAssetPage(1);
+  };
+
+  // PPM drill state and data
+  const [ppmPage, setPpmPage] = useState(1);
+  const [ppmStatusFilter, setPpmStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
+
+  const { data: ppmDrillData, isPending: isPPMDrillPending } = usePPMDrill(
+    siteFilters,
+    ppmFilter
+  );
+
+  // Get category data for fallback
+  const selectedPPMCategory = useMemo(() => {
+    if (!ppmFilter) return null;
+    return data?.ppm.by_category.find(c => c.category === ppmFilter) ?? null;
+  }, [ppmFilter, data?.ppm.by_category]);
+
+  // Filtered PPM records by status (case-insensitive, treat various statuses as pending/completed)
+  // Note: Backend uses "complete" (without 'd'), so we check for both
+  const filteredPPMRecords = useMemo(() => {
+    if (!ppmDrillData?.records) return [];
+    if (ppmStatusFilter === 'all') return ppmDrillData.records;
+    
+    return ppmDrillData.records.filter(r => {
+      const status = r.status?.toLowerCase() ?? '';
+      if (ppmStatusFilter === 'completed') {
+        // Backend uses "complete", frontend displays "completed"
+        return status === 'complete' || status === 'completed' || status === 'done' || status === 'finished';
+      }
+      // Pending includes: pending, incomplete, in_progress, overdue, etc. (anything not completed)
+      return status !== 'complete' && status !== 'completed' && status !== 'done' && status !== 'finished';
+    });
+  }, [ppmDrillData?.records, ppmStatusFilter]);
+
+  // Paginated PPM records
+  const paginatedPPMRecords = useMemo(() => {
+    if (!filteredPPMRecords.length) return [];
+    const start = (ppmPage - 1) * RECORDS_PER_PAGE;
+    return filteredPPMRecords.slice(start, start + RECORDS_PER_PAGE);
+  }, [filteredPPMRecords, ppmPage]);
+
+  const totalPPMPages = useMemo(() => {
+    if (!filteredPPMRecords.length) return 0;
+    return Math.ceil(filteredPPMRecords.length / RECORDS_PER_PAGE);
+  }, [filteredPPMRecords]);
+
+  // Reset page when PPM filter changes
+  const handlePPMFilterChange = (category: string | null) => {
+    setPpmFilter(category);
+    setPpmPage(1);
+    setPpmStatusFilter('all');
+  };
+
+  // Reset page when PPM status filter changes
+  const handlePPMStatusFilterChange = (status: 'all' | 'pending' | 'completed') => {
+    setPpmStatusFilter(status);
+    setPpmPage(1);
+  };
 
   const handleExport = () => {
     if (!data) return;
@@ -102,6 +262,7 @@ export function SiteDrillPanel() {
       ppm_percentage: data.summary?.ppm_percentage,
       workforce_percentage: data.summary?.workforce_percentage,
       open_tickets: data.summary?.open_tickets,
+      pending_tickets: data.summary?.pending_tickets,
       breached_tickets: data.summary?.breached_tickets,
       total_assets: data.summary?.total_assets,
       total_staff: data.summary?.total_staff,
@@ -168,7 +329,7 @@ export function SiteDrillPanel() {
             <StatCard label="SLA %" value={`${data.summary.sla_percentage}%`} color={getStatus(data.summary.sla_percentage) === 'healthy' ? 'text-healthy' : getStatus(data.summary.sla_percentage) === 'warning' ? 'text-warning' : 'text-critical'} />
             <StatCard label="PPM %" value={`${data.summary.ppm_percentage}%`} color={getStatus(data.summary.ppm_percentage) === 'healthy' ? 'text-healthy' : getStatus(data.summary.ppm_percentage) === 'warning' ? 'text-warning' : 'text-critical'} />
             <StatCard label="Workforce %" value={`${data.summary.workforce_percentage}%`} color={getStatus(data.summary.workforce_percentage) === 'healthy' ? 'text-healthy' : getStatus(data.summary.workforce_percentage) === 'warning' ? 'text-warning' : 'text-critical'} />
-            <StatCard label="Open Tickets" value={data.summary.open_tickets} />
+            <StatCard label="Pending Tickets" value={data.summary.pending_tickets} />
             <StatCard label="Breached" value={data.summary.breached_tickets} color="text-critical" />
             <StatCard label="Total Assets" value={data.summary.total_assets} />
             <StatCard label="Total Staff" value={data.summary.total_staff} />
@@ -206,15 +367,55 @@ export function SiteDrillPanel() {
 
         <TabsContent value="tickets" className="space-y-4">
           <div className="grid grid-cols-4 gap-2">
-            <StatCard label="Total" value={data.tickets.summary.total} />
-            <StatCard label="Open" value={data.tickets.summary.open} color="text-warning" />
-            <StatCard label="Breached" value={data.tickets.summary.breached} color="text-critical" />
-            <StatCard label="SLA %" value={`${data.tickets.summary.sla_percentage}%`} />
+            <StatCard 
+              label="Total" 
+              value={data.tickets.summary.total} 
+              onClick={() => setTicketFilter('all')}
+              active={ticketFilter === 'all'}
+            />
+            <StatCard 
+              label="Pending" 
+              value={data.tickets.summary.pending} 
+              color="text-warning" 
+              onClick={() => setTicketFilter(ticketFilter === 'pending' ? 'all' : 'pending')}
+              active={ticketFilter === 'pending'}
+            />
+            <StatCard 
+              label="Breached" 
+              value={data.tickets.summary.breached} 
+              color="text-critical" 
+              onClick={() => setTicketFilter(ticketFilter === 'breached' ? 'all' : 'breached')}
+              active={ticketFilter === 'breached'}
+            />
+            <StatCard 
+              label="SLA %" 
+              value={`${data.tickets.summary.sla_percentage}%`} 
+              onClick={() => setTicketFilter(ticketFilter === 'within_sla' ? 'all' : 'within_sla')}
+              active={ticketFilter === 'within_sla'}
+            />
           </div>
-          <SectionTitle>Recent Tickets</SectionTitle>
+          
+          {ticketFilter !== 'all' && (
+            <FilterHeader 
+              label={ticketFilter === 'pending' ? 'Pending Tickets' : ticketFilter === 'breached' ? 'Breached Tickets' : 'Within SLA'} 
+              onClear={() => setTicketFilter('all')} 
+            />
+          )}
+          
+          <SectionTitle>
+            {ticketFilter === 'all' ? 'Recent Tickets' : `${ticketFilter === 'pending' ? 'Pending' : ticketFilter === 'breached' ? 'Breached' : 'Within SLA'} Tickets`}
+          </SectionTitle>
           <div className="space-y-2 max-h-[280px] overflow-y-auto">
-            {data.tickets.recent.map((t) => (
-              <div key={t.id} className="flex items-start justify-between p-2 border rounded-md">
+            {data.tickets.recent
+              .filter((t) => {
+                if (ticketFilter === 'all') return true;
+                if (ticketFilter === 'pending') return t.status === 'Pending' || t.sla_status === 'At Risk';
+                if (ticketFilter === 'breached') return t.sla_status === 'Breached';
+                if (ticketFilter === 'within_sla') return t.sla_status === 'Within SLA';
+                return true;
+              })
+              .map((t) => (
+              <div key={t.id} className="flex items-start justify-between p-2 border rounded-md hover:bg-muted/30 cursor-pointer transition-colors">
                 <div>
                   <div className="text-xs font-mono text-muted-foreground">{t.ticket_number}</div>
                   <div className="text-sm font-medium truncate">{t.heading}</div>
@@ -229,122 +430,739 @@ export function SiteDrillPanel() {
                 </Badge>
               </div>
             ))}
-            {data.tickets.recent.length === 0 && <p className="text-xs text-muted-foreground">No tickets</p>}
+            {data.tickets.recent.filter((t) => {
+              if (ticketFilter === 'all') return true;
+              if (ticketFilter === 'pending') return t.status === 'Pending' || t.sla_status === 'At Risk';
+              if (ticketFilter === 'breached') return t.sla_status === 'Breached';
+              if (ticketFilter === 'within_sla') return t.sla_status === 'Within SLA';
+              return true;
+            }).length === 0 && <p className="text-xs text-muted-foreground">No tickets found</p>}
           </div>
         </TabsContent>
 
         <TabsContent value="assets" className="space-y-4">
           <div className="grid grid-cols-2 gap-2">
-            <StatCard label="Total" value={data.assets.summary.total} />
-            <StatCard label="Health %" value={`${data.assets.summary.health_percentage}%`} />
-            <StatCard label="Operational" value={data.assets.summary.operational} color="text-healthy" />
-            <StatCard label="Maintenance" value={data.assets.summary.maintenance} color="text-warning" />
-            <StatCard label="Critical" value={data.assets.summary.critical} color="text-critical" />
-            <StatCard label="Offline" value={data.assets.summary.offline} />
+            <StatCard 
+              label="Total" 
+              value={data.assets.summary.total} 
+              onClick={() => handleAssetFilterChange('all')}
+              active={assetFilter === 'all'}
+            />
+            <StatCard 
+              label="Health %" 
+              value={`${data.assets.summary.health_percentage}%`} 
+            />
+            <StatCard 
+              label="Operational" 
+              value={data.assets.summary.operational} 
+              color="text-healthy" 
+              onClick={() => handleAssetFilterChange(assetFilter === 'operational' ? 'all' : 'operational')}
+              active={assetFilter === 'operational'}
+            />
+            <StatCard 
+              label="Maintenance" 
+              value={data.assets.summary.maintenance} 
+              color="text-warning" 
+              onClick={() => handleAssetFilterChange(assetFilter === 'maintenance' ? 'all' : 'maintenance')}
+              active={assetFilter === 'maintenance'}
+            />
+            <StatCard 
+              label="Critical" 
+              value={data.assets.summary.critical} 
+              color="text-critical" 
+              onClick={() => handleAssetFilterChange(assetFilter === 'critical' ? 'all' : 'critical')}
+              active={assetFilter === 'critical'}
+            />
+            <StatCard 
+              label="Offline" 
+              value={data.assets.summary.offline} 
+              onClick={() => handleAssetFilterChange(assetFilter === 'offline' ? 'all' : 'offline')}
+              active={assetFilter === 'offline'}
+            />
           </div>
-          {assetBreakdownData.filter((d) => d.value > 0).length > 0 && (
-            <>
-              <SectionTitle>Status Distribution</SectionTitle>
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={assetBreakdownData.filter((d) => d.value > 0)}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" name="Assets" radius={[4, 4, 0, 0]}>
-                    {assetBreakdownData.filter((d) => d.value > 0).map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </>
+          
+          {assetFilter !== 'all' && (
+            <FilterHeader 
+              label={`${assetFilter.charAt(0).toUpperCase() + assetFilter.slice(1)} Assets`} 
+              onClear={() => handleAssetFilterChange('all')} 
+            />
           )}
-          {data.assets.by_category.length > 0 && (
-            <>
-              <SectionTitle>By Category</SectionTitle>
-              <div className="space-y-1.5">
-                {data.assets.by_category.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{c.category}</span>
-                    <span className="font-medium">{c.count}</span>
+          
+          {assetFilter !== 'all' ? (
+            <div className="space-y-4">
+              {/* Summary stats */}
+              <div className="grid grid-cols-2 gap-2 p-3 bg-muted/30 rounded-lg">
+                <div className="text-center">
+                  <div className="text-xl font-bold">{assetDrillData?.total ?? data.assets.breakdown.find(b => b.status === assetFilter)?.count ?? 0}</div>
+                  <div className="text-xs text-muted-foreground">Total {assetFilter}</div>
+                </div>
+                <div className="text-center">
+                  <div className={cn('text-xl font-bold', 
+                    assetFilter === 'operational' ? 'text-healthy' : 
+                    assetFilter === 'maintenance' ? 'text-warning' : 
+                    assetFilter === 'critical' ? 'text-critical' : 'text-muted-foreground'
+                  )}>
+                    {assetFilter.charAt(0).toUpperCase() + assetFilter.slice(1)}
                   </div>
-                ))}
+                  <div className="text-xs text-muted-foreground">Status</div>
+                </div>
               </div>
-            </>
-          )}
-          {data.assets.critical_assets.length > 0 && (
-            <>
-              <SectionTitle>Critical Assets</SectionTitle>
-              <div className="space-y-2">
-                {data.assets.critical_assets.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between p-2 bg-critical/10 rounded-md">
-                    <div>
-                      <div className="text-xs font-mono">{a.asset_number}</div>
-                      <div className="text-sm font-medium">{a.name}</div>
-                      <div className="text-xs text-muted-foreground">{a.location} · {a.category ?? '—'}</div>
+
+              {/* Records list */}
+              <SectionTitle>
+                Asset Details ({assetDrillData?.records?.length ?? 0} records)
+              </SectionTitle>
+              
+              {isAssetDrillPending ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-14 w-full rounded-md" />
+                  ))}
+                </div>
+              ) : paginatedAssetRecords.length > 0 ? (
+                <div className="space-y-2">
+                  {paginatedAssetRecords.map((record) => (
+                    <div 
+                      key={record.id} 
+                      className={cn(
+                        "flex items-center justify-between p-3 border rounded-md hover:bg-muted/30 transition-colors",
+                        record.critical && "border-critical/30 bg-critical/5"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          'w-8 h-8 rounded-full flex items-center justify-center',
+                          assetFilter === 'operational' ? 'bg-healthy/20' : 
+                          assetFilter === 'maintenance' ? 'bg-warning/20' : 
+                          assetFilter === 'critical' ? 'bg-critical/20' : 'bg-muted'
+                        )}>
+                          <Wrench className={cn('h-4 w-4', 
+                            assetFilter === 'operational' ? 'text-healthy' : 
+                            assetFilter === 'maintenance' ? 'text-warning' : 
+                            assetFilter === 'critical' ? 'text-critical' : 'text-muted-foreground'
+                          )} />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">{record.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            <span className="font-mono">{record.asset_number}</span>
+                            {record.category && <span> · {record.category}</span>}
+                          </div>
+                          {record.location && (
+                            <div className="text-xs text-muted-foreground">{record.location}</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            'text-2xs',
+                            assetFilter === 'operational' ? 'border-healthy text-healthy' : 
+                            assetFilter === 'maintenance' ? 'border-warning text-warning' : 
+                            assetFilter === 'critical' ? 'border-critical text-critical' : 
+                            'border-muted-foreground text-muted-foreground'
+                          )}
+                        >
+                          {record.status}
+                        </Badge>
+                        {record.critical && <AlertTriangle className="h-4 w-4 text-critical" />}
+                      </div>
                     </div>
-                    <AlertTriangle className="h-4 w-4 text-critical shrink-0" />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">No {assetFilter} assets found</p>
+              )}
+
+              {/* Pagination */}
+              {totalAssetPages > 1 && (
+                <div className="flex items-center justify-between pt-3 border-t">
+                  <div className="text-xs text-muted-foreground">
+                    Page {assetPage} of {totalAssetPages}
                   </div>
-                ))}
-              </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setAssetPage(p => Math.max(1, p - 1))}
+                      disabled={assetPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalAssetPages) }, (_, i) => {
+                        let pageNum: number;
+                        if (totalAssetPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (assetPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (assetPage >= totalAssetPages - 2) {
+                          pageNum = totalAssetPages - 4 + i;
+                        } else {
+                          pageNum = assetPage - 2 + i;
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={assetPage === pageNum ? 'default' : 'outline'}
+                            size="sm"
+                            className="h-7 w-7 p-0 text-xs"
+                            onClick={() => setAssetPage(pageNum)}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setAssetPage(p => Math.min(totalAssetPages, p + 1))}
+                      disabled={assetPage === totalAssetPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {assetBreakdownData.filter((d) => d.value > 0).length > 0 && (
+                <>
+                  <SectionTitle>Status Distribution</SectionTitle>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <BarChart data={assetBreakdownData.filter((d) => d.value > 0)}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <Tooltip />
+                      <Bar dataKey="value" name="Assets" radius={[4, 4, 0, 0]}>
+                        {assetBreakdownData.filter((d) => d.value > 0).map((entry, i) => (
+                          <Cell key={i} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </>
+              )}
+              {data.assets.by_category.length > 0 && (
+                <>
+                  <SectionTitle>By Category</SectionTitle>
+                  <div className="space-y-1.5">
+                    {data.assets.by_category.map((c, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">{c.category}</span>
+                        <span className="font-medium">{c.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {data.assets.critical_assets.length > 0 && (
+                <>
+                  <SectionTitle>Critical Assets</SectionTitle>
+                  <div className="space-y-2">
+                    {data.assets.critical_assets.map((a) => (
+                      <div key={a.id} className="flex items-center justify-between p-2 bg-critical/10 rounded-md cursor-pointer hover:bg-critical/20 transition-colors">
+                        <div>
+                          <div className="text-xs font-mono">{a.asset_number}</div>
+                          <div className="text-sm font-medium">{a.name}</div>
+                          <div className="text-xs text-muted-foreground">{a.location} · {a.category ?? '—'}</div>
+                        </div>
+                        <AlertTriangle className="h-4 w-4 text-critical shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
         </TabsContent>
 
         <TabsContent value="ppm" className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
-            <StatCard label="Total" value={data.ppm.total} />
-            <StatCard label="Completed" value={data.ppm.completed} color="text-healthy" />
-            <StatCard label="Completion %" value={`${data.ppm.percentage}%`} />
+            <StatCard 
+              label="Total" 
+              value={data.ppm.total} 
+              onClick={() => handlePPMFilterChange(null)}
+              active={ppmFilter === null}
+            />
+            <StatCard 
+              label="Completed" 
+              value={data.ppm.completed} 
+              color="text-healthy" 
+            />
+            <StatCard 
+              label="Completion %" 
+              value={`${data.ppm.percentage}%`} 
+            />
           </div>
+          
+          {ppmFilter && (
+            <FilterHeader 
+              label={`${ppmFilter} PPM Tasks`} 
+              onClear={() => handlePPMFilterChange(null)} 
+            />
+          )}
+          
           {ppmCategoryData.length > 0 && (
             <>
-              <SectionTitle>PPM by Category</SectionTitle>
-              <ResponsiveContainer width="100%" height={Math.max(ppmCategoryData.length * 36, 120)}>
-                <BarChart data={ppmCategoryData} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
-                  <YAxis dataKey="category" type="category" width={80} tick={{ fontSize: 9 }} />
-                  <Tooltip formatter={(v: number) => `${v}%`} />
-                  <Bar dataKey="percentage" name="Completion %" fill="#3b82f6" radius={[0, 3, 3, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <SectionTitle>PPM by Category {!ppmFilter && '(Click to drill down)'}</SectionTitle>
+              {ppmFilter ? (
+                <div className="space-y-4">
+                  {/* Summary stats with clickable pending/completed */}
+                  <div className="p-4 bg-muted/30 rounded-lg">
+                    {(() => {
+                      const category = ppmCategoryData.find(c => c.category === ppmFilter);
+                      // Use API data if available, otherwise fall back to category data
+                      const total = (ppmDrillData?.total && ppmDrillData.total > 0) ? ppmDrillData.total : category?.total ?? 0;
+                      const completed = (ppmDrillData?.completed !== undefined && ppmDrillData.total && ppmDrillData.total > 0) ? ppmDrillData.completed : category?.completed ?? 0;
+                      const pending = total - completed;
+                      const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+                      // Check if API returned records
+                      const hasRecords = (ppmDrillData?.records?.length ?? 0) > 0;
+                      return (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-4 gap-2">
+                            <div 
+                              className={cn(
+                                "text-center p-2 rounded-md transition-all cursor-pointer hover:bg-muted/50",
+                                ppmStatusFilter === 'all' && "ring-2 ring-primary bg-primary/10"
+                              )}
+                              onClick={() => handlePPMStatusFilterChange('all')}
+                            >
+                              <div className="text-xl font-bold">{total}</div>
+                              <div className="text-xs text-muted-foreground">Total</div>
+                            </div>
+                            <div 
+                              className={cn(
+                                "text-center p-2 rounded-md transition-all cursor-pointer hover:bg-muted/50",
+                                ppmStatusFilter === 'completed' && "ring-2 ring-healthy bg-healthy/10"
+                              )}
+                              onClick={() => handlePPMStatusFilterChange('completed')}
+                            >
+                              <div className="text-xl font-bold text-healthy">{completed}</div>
+                              <div className="text-xs text-muted-foreground">Completed</div>
+                            </div>
+                            <div 
+                              className={cn(
+                                "text-center p-2 rounded-md transition-all cursor-pointer hover:bg-muted/50",
+                                ppmStatusFilter === 'pending' && "ring-2 ring-warning bg-warning/10"
+                              )}
+                              onClick={() => handlePPMStatusFilterChange('pending')}
+                            >
+                              <div className="text-xl font-bold text-warning">{pending}</div>
+                              <div className="text-xs text-muted-foreground">Pending</div>
+                            </div>
+                            <div className="text-center p-2">
+                              <div className={cn('text-xl font-bold', percentage >= 85 ? 'text-healthy' : percentage >= 70 ? 'text-warning' : 'text-critical')}>
+                                {percentage}%
+                              </div>
+                              <div className="text-xs text-muted-foreground">Rate</div>
+                            </div>
+                          </div>
+                          {!hasRecords && total > 0 && (
+                            <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                              Task details not available from API. Showing summary from category data.
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Status filter indicator */}
+                  {ppmStatusFilter !== 'all' && (
+                    <div className="flex items-center justify-between p-2 bg-primary/5 rounded-md">
+                      <span className="text-sm font-medium">
+                        Showing: <span className={ppmStatusFilter === 'completed' ? 'text-healthy' : 'text-warning'}>{ppmStatusFilter.charAt(0).toUpperCase() + ppmStatusFilter.slice(1)}</span> Tasks ({filteredPPMRecords.length})
+                      </span>
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => handlePPMStatusFilterChange('all')}>
+                        <X className="h-3 w-3 mr-1" /> Show All
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Records list */}
+                  <SectionTitle>
+                    Task Details ({filteredPPMRecords.length} records)
+                  </SectionTitle>
+                  
+                  {isPPMDrillPending ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Skeleton key={i} className="h-16 w-full rounded-md" />
+                      ))}
+                    </div>
+                  ) : paginatedPPMRecords.length > 0 ? (
+                    <div className="space-y-2">
+                      {paginatedPPMRecords.map((record) => (
+                        <div 
+                          key={record.id} 
+                          className={cn(
+                            "p-3 border rounded-md hover:bg-muted/30 transition-colors",
+                            (record.status === 'complete' || record.status === 'completed') && "border-healthy/30 bg-healthy/5",
+                            record.status === 'pending' && "border-warning/30 bg-warning/5",
+                            record.status === 'overdue' && "border-critical/30 bg-critical/5"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                'w-8 h-8 rounded-full flex items-center justify-center',
+                                (record.status === 'complete' || record.status === 'completed') ? 'bg-healthy/20' : 
+                                record.status === 'pending' ? 'bg-warning/20' : 
+                                record.status === 'overdue' ? 'bg-critical/20' : 'bg-muted'
+                              )}>
+                                <ClipboardList className={cn('h-4 w-4', 
+                                  (record.status === 'complete' || record.status === 'completed') ? 'text-healthy' : 
+                                  record.status === 'pending' ? 'text-warning' : 
+                                  record.status === 'overdue' ? 'text-critical' : 'text-muted-foreground'
+                                )} />
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium">{record.asset_name ?? `Asset #${record.asset_id}`}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {record.asset_number && <span className="font-mono">{record.asset_number} · </span>}
+                                  {record.category}
+                                </div>
+                                <div className="text-xs text-muted-foreground">{record.location}</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  'text-2xs',
+                                  (record.status === 'complete' || record.status === 'completed') ? 'border-healthy text-healthy' : 
+                                  record.status === 'pending' ? 'border-warning text-warning' : 
+                                  record.status === 'overdue' ? 'border-critical text-critical' : 
+                                  'border-muted-foreground text-muted-foreground'
+                                )}
+                              >
+                                {record.status === 'complete' ? 'completed' : record.status}
+                              </Badge>
+                              {record.start_time && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {new Date(record.start_time).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    (() => {
+                      // Show fallback message when API has no records but category has count
+                      const categoryTotal = selectedPPMCategory?.total ?? 0;
+                      if (categoryTotal > 0 && (ppmDrillData?.records?.length ?? 0) === 0) {
+                        const categoryCompleted = selectedPPMCategory?.completed ?? 0;
+                        const categoryPending = categoryTotal - categoryCompleted;
+                        return (
+                          <div className="p-4 bg-muted/30 rounded-lg text-center space-y-3">
+                            <div className="text-sm text-muted-foreground">
+                              Task records not available via API.
+                            </div>
+                            <div className="text-sm">
+                              <span className="font-medium">{categoryTotal} total tasks</span> in this category:
+                            </div>
+                            <div className="flex justify-center gap-6">
+                              <div>
+                                <span className="text-healthy font-bold">{categoryCompleted}</span>
+                                <span className="text-xs text-muted-foreground ml-1">completed</span>
+                              </div>
+                              <div>
+                                <span className="text-warning font-bold">{categoryPending}</span>
+                                <span className="text-xs text-muted-foreground ml-1">pending</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return <p className="text-xs text-muted-foreground text-center py-4">No tasks found in this category</p>;
+                    })()
+                  )}
+
+                  {/* Pagination */}
+                  {totalPPMPages > 1 && (
+                    <div className="flex items-center justify-between pt-3 border-t">
+                      <div className="text-xs text-muted-foreground">
+                        Page {ppmPage} of {totalPPMPages}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => setPpmPage(p => Math.max(1, p - 1))}
+                          disabled={ppmPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalPPMPages) }, (_, i) => {
+                            let pageNum: number;
+                            if (totalPPMPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (ppmPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (ppmPage >= totalPPMPages - 2) {
+                              pageNum = totalPPMPages - 4 + i;
+                            } else {
+                              pageNum = ppmPage - 2 + i;
+                            }
+                            return (
+                              <Button
+                                key={pageNum}
+                                variant={ppmPage === pageNum ? 'default' : 'outline'}
+                                size="sm"
+                                className="h-7 w-7 p-0 text-xs"
+                                onClick={() => setPpmPage(pageNum)}
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => setPpmPage(p => Math.min(totalPPMPages, p + 1))}
+                          disabled={ppmPage === totalPPMPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {ppmCategoryData.map((c, i) => (
+                    <div 
+                      key={i} 
+                      className="flex items-center justify-between p-2 bg-muted/30 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handlePPMFilterChange(c.category)}
+                    >
+                      <span className="text-sm">{c.category}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn('text-sm font-medium', c.percentage >= 85 ? 'text-healthy' : c.percentage >= 70 ? 'text-warning' : 'text-critical')}>
+                          {c.percentage}%
+                        </span>
+                        <span className="text-xs text-muted-foreground">({c.completed}/{c.total})</span>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </TabsContent>
 
         <TabsContent value="workforce" className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
-            <StatCard label="Total" value={data.workforce.total} />
-            <StatCard label="Present Today" value={data.workforce.present} color="text-healthy" />
-            <StatCard label="Availability %" value={`${data.workforce.percentage}%`} />
+            <StatCard 
+              label="Total" 
+              value={data.workforce.total} 
+              onClick={() => setWorkforceFilter(null)}
+              active={workforceFilter === null}
+            />
+            <StatCard 
+              label="Present Today" 
+              value={data.workforce.present} 
+              color="text-healthy" 
+            />
+            <StatCard 
+              label="Availability %" 
+              value={`${data.workforce.percentage}%`} 
+            />
           </div>
-          {workforceVendorData.length > 0 && (
-            <>
-              <SectionTitle>By Vendor</SectionTitle>
-              <div className="space-y-1.5">
-                {workforceVendorData.map((v, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                    <span className="text-sm">{v.vendor}</span>
-                    <span className="text-sm font-medium">{v.count}</span>
-                  </div>
-                ))}
-              </div>
-            </>
+          
+          {workforceFilter && (
+            <FilterHeader 
+              label={`${workforceFilter.type === 'vendor' ? 'Vendor' : 'Work Type'}: ${workforceFilter.value}`} 
+              onClear={() => handleWorkforceFilterChange(null)} 
+            />
           )}
-          {workforceTypeData.length > 0 && (
-            <>
-              <SectionTitle>By Work Type</SectionTitle>
-              <div className="space-y-1.5">
-                {workforceTypeData.map((w, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                    <span className="text-sm">{w.work_type}</span>
-                    <span className="text-sm font-medium">{w.count}</span>
-                  </div>
-                ))}
+          
+          {workforceFilter ? (
+            <div className="space-y-4">
+              {/* Summary stats */}
+              <div className="grid grid-cols-3 gap-2 p-3 bg-muted/30 rounded-lg">
+                <div className="text-center">
+                  <div className="text-xl font-bold">{workforceDrillData?.total ?? 0}</div>
+                  <div className="text-xs text-muted-foreground">Total</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl font-bold text-healthy">{workforceDrillData?.present ?? 0}</div>
+                  <div className="text-xs text-muted-foreground">Present</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl font-bold text-critical">{workforceDrillData?.absent ?? 0}</div>
+                  <div className="text-xs text-muted-foreground">Absent</div>
+                </div>
               </div>
-            </>
+
+              {/* Records list */}
+              <SectionTitle>
+                Staff Details ({workforceDrillData?.records?.length ?? 0} records)
+              </SectionTitle>
+              
+              {isWorkforceDrillPending ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-14 w-full rounded-md" />
+                  ))}
+                </div>
+              ) : paginatedWorkforceRecords.length > 0 ? (
+                <div className="space-y-2">
+                  {paginatedWorkforceRecords.map((record) => (
+                    <div 
+                      key={record.id} 
+                      className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          'w-8 h-8 rounded-full flex items-center justify-center',
+                          record.present_today ? 'bg-healthy/20' : 'bg-muted'
+                        )}>
+                          <User className={cn('h-4 w-4', record.present_today ? 'text-healthy' : 'text-muted-foreground')} />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">{record.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {record.employee_no && <span className="font-mono">{record.employee_no} · </span>}
+                            {record.work_type}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            'text-2xs',
+                            record.present_today 
+                              ? 'border-healthy text-healthy' 
+                              : 'border-muted-foreground text-muted-foreground'
+                          )}
+                        >
+                          {record.present_today ? (
+                            <><Check className="h-3 w-3 mr-1" /> Present</>
+                          ) : (
+                            <><XCircle className="h-3 w-3 mr-1" /> Absent</>
+                          )}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">No records found</p>
+              )}
+
+              {/* Pagination */}
+              {totalWorkforcePages > 1 && (
+                <div className="flex items-center justify-between pt-3 border-t">
+                  <div className="text-xs text-muted-foreground">
+                    Page {workforcePage} of {totalWorkforcePages}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setWorkforcePage(p => Math.max(1, p - 1))}
+                      disabled={workforcePage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalWorkforcePages) }, (_, i) => {
+                        let pageNum: number;
+                        if (totalWorkforcePages <= 5) {
+                          pageNum = i + 1;
+                        } else if (workforcePage <= 3) {
+                          pageNum = i + 1;
+                        } else if (workforcePage >= totalWorkforcePages - 2) {
+                          pageNum = totalWorkforcePages - 4 + i;
+                        } else {
+                          pageNum = workforcePage - 2 + i;
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={workforcePage === pageNum ? 'default' : 'outline'}
+                            size="sm"
+                            className="h-7 w-7 p-0 text-xs"
+                            onClick={() => setWorkforcePage(pageNum)}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setWorkforcePage(p => Math.min(totalWorkforcePages, p + 1))}
+                      disabled={workforcePage === totalWorkforcePages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {workforceVendorData.length > 0 && (
+                <>
+                  <SectionTitle>By Vendor (Click to drill down)</SectionTitle>
+                  <div className="space-y-1.5">
+                    {workforceVendorData.map((v, i) => (
+                      <div 
+                        key={i} 
+                        className="flex items-center justify-between p-2 bg-muted/30 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleWorkforceFilterChange({ type: 'vendor', value: v.vendor })}
+                      >
+                        <span className="text-sm">{v.vendor}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{v.count}</span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {workforceTypeData.length > 0 && (
+                <>
+                  <SectionTitle>By Work Type (Click to drill down)</SectionTitle>
+                  <div className="space-y-1.5">
+                    {workforceTypeData.map((w, i) => (
+                      <div 
+                        key={i} 
+                        className="flex items-center justify-between p-2 bg-muted/30 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleWorkforceFilterChange({ type: 'work_type', value: w.work_type })}
+                      >
+                        <span className="text-sm">{w.work_type}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{w.count}</span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}            </>
           )}
         </TabsContent>
       </Tabs>

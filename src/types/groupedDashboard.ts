@@ -23,69 +23,110 @@ export interface OrgAssociatesResponse {
 // GET /api/v1/grouped_dashboard
 export interface DashboardKPIsResponse {
   ticket_sla_health: {
-    summary: any;
-    percentage: number;
-    within_sla: number;
-    at_risk: number;
-    breached: number;
-    total: number;
-    vs_last_period: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_last_period: number;
+      within_sla: number;
+      prev_within_sla: number;
+      at_risk: number;
+      prev_at_risk: number;
+      breached: number;
+      prev_breached: number;
+      total: number;
+      prev_total: number;
+    };
+    records: any;
   };
   ppm_compliance: {
-    summary: any;
-    percentage: number;
-    completed: number;
-    missed: number;
-    overdue: number;
-    total_scheduled: number;
-    vs_last_period: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_last_period: number;
+      completed: number;
+      prev_completed: number;
+      pending: number;
+      prev_pending: number;
+      missed: number;
+      prev_missed: number;
+      overdue: number;
+      prev_overdue: number;
+      total_scheduled: number;
+      prev_total_scheduled: number;
+    };
+    records: any;
   };
   asset_health: {
-    summary: any;
-    percentage: number;
-    operational: number;
-    maintenance: number;
-    critical: number;
-    offline: number;
-    total: number;
-    vs_last_period: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_last_period: number;
+      operational: number;
+      prev_operational: number;
+      maintenance: number;
+      critical: number;
+      offline: number;
+      total: number;
+      prev_total: number;
+    };
+    records: any;
   };
   workforce_availability: {
-    summary: any;
-    percentage: number;
-    present: number;
-    absent: number;
-    total: number;
-    vs_yesterday: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_yesterday: number;
+      present: number;
+      prev_present: number;
+      absent: number;
+      prev_absent: number;
+      total: number;
+    };
+    records: any;
   };
   vendor_sla: {
-    summary: any;
-    percentage: number;
-    compliant: number;
-    at_risk: number;
-    non_compliant: number;
-    total: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_last_period: number;
+      compliant: number;
+      at_risk: number;
+      non_compliant: number;
+      total: number;
+    };
+    records: any;
   };
   compliance_score: {
-    summary: any;
-    percentage: number;
-    compliant: number;
-    non_compliant: number;
-    pending: number;
-    total: number;
-    vs_last_period: number;
+    summary: {
+      percentage: number;
+      prev_percentage: number;
+      vs_last_period: number;
+      compliant: number;
+      prev_compliant: number;
+      non_compliant: number;
+      pending: number;
+      total: number;
+      prev_total: number;
+    };
+    records: any;
   };
   visitors_today: {
-    summary: any;
-    checked_in: number;
-    checked_out: number;
-    currently_inside: number;
-    vs_yesterday: number;
+    summary: {
+      checked_in: number;
+      prev_checked_in: number;
+      checked_out: number;
+      currently_inside: number;
+      vs_yesterday: number;
+    };
+    records: any;
   };
   avg_resolution_time: {
-    summary: any;
-    hours: number;
-    vs_last_period: number;
+    summary: {
+      hours: number;
+      prev_hours: number;
+      vs_last_period: number;
+    };
+    records: any;
   };
 }
 
@@ -98,6 +139,7 @@ export interface SiteDrillResponse {
     ppm_percentage: number;
     workforce_percentage: number;
     open_tickets: number;
+    pending_tickets: number;
     breached_tickets: number;
     total_tickets: number;
     total_assets: number;
@@ -105,7 +147,7 @@ export interface SiteDrillResponse {
   };
   blocks: { id: number; name: string; floor_no?: string; floor_count: number; units_count: number }[];
   tickets: {
-    summary: { total: number; open: number; breached: number; sla_percentage: number };
+    summary: { total: number; open: number; pending: number; breached: number; sla_percentage: number };
     recent: {
       id: number;
       ticket_number: string;
@@ -149,6 +191,7 @@ export interface SitePerformanceSite {
   sla_percentage: number;
   ppm_percentage: number;
   open_tickets: number;
+  pending_tickets: number;
   breached_tickets: number;
   total_assets: number;
   workforce_percentage: number;
@@ -299,6 +342,14 @@ export interface AssetDrillResponse {
   drill_type: 'status' | 'category';
   filter_value: string;
   total: number;
+  summary?: {
+    total: number;
+    operational: number;
+    maintenance: number;
+    critical: number;
+    offline: number;
+    health_percentage: number;
+  };
   records: AssetDrillRecord[];
 }
 
