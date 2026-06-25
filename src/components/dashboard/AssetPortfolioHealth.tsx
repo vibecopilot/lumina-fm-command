@@ -28,7 +28,7 @@ export function AssetPortfolioHealth() {
     pct >= 85 ? 'healthy' : pct >= 70 ? 'warning' : 'critical';
 
   return (
-    <section className="py-6 border-t">
+    <section className="py-4 sm:py-6 border-t">
       <div className="container">
         <SectionHeader
           title="Asset Portfolio & Health"
@@ -37,15 +37,15 @@ export function AssetPortfolioHealth() {
         />
 
         {isLoading ? (
-          <div className="grid grid-cols-12 gap-4">
-            <Skeleton className="col-span-3 h-64 rounded-lg" />
-            <Skeleton className="col-span-5 h-64 rounded-lg" />
-            <Skeleton className="col-span-4 h-64 rounded-lg" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Skeleton className="h-64 rounded-lg" />
+            <Skeleton className="h-64 rounded-lg" />
+            <Skeleton className="h-64 rounded-lg" />
           </div>
         ) : (
-          <div className="grid grid-cols-12 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
             {/* Status Overview Chart */}
-            <div className="col-span-3 border rounded-lg p-4">
+            <div className="sm:col-span-1 lg:col-span-3 border rounded-lg p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Status Distribution
               </h4>
@@ -68,11 +68,7 @@ export function AssetPortfolioHealth() {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{
-                        fontSize: '12px',
-                        borderRadius: '8px',
-                        border: '1px solid hsl(var(--border))',
-                      }}
+                      contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -87,7 +83,7 @@ export function AssetPortfolioHealth() {
                     tabIndex={0}
                     onKeyDown={(e) => e.key === 'Enter' && openSlideOver('drill_asset', { type: 'status', value: item.name.toLowerCase() })}
                   >
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                     <span className="text-2xs text-muted-foreground">{item.name}</span>
                     <span className="text-2xs font-medium ml-auto group-hover:text-primary">{item.value}</span>
                     <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -97,7 +93,7 @@ export function AssetPortfolioHealth() {
             </div>
 
             {/* Category Breakdown */}
-            <div className="col-span-5 border rounded-lg p-4">
+            <div className="sm:col-span-1 lg:col-span-5 border rounded-lg p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Category Breakdown
               </h4>
@@ -115,19 +111,13 @@ export function AssetPortfolioHealth() {
                       <span className="text-sm font-medium group-hover:text-primary transition-colors">{cat.category}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">{cat.total} assets</span>
-                        <StatusBadge
-                          status={getHealthStatus(cat.health_percentage)}
-                          label={`${cat.health_percentage}%`}
-                        />
+                        <StatusBadge status={getHealthStatus(cat.health_percentage)} label={`${cat.health_percentage}%`} />
                         <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
-                        className={cn(
-                          'h-full rounded-full transition-all',
-                          cat.health_percentage >= 85 ? 'bg-healthy' : cat.health_percentage >= 70 ? 'bg-warning' : 'bg-critical'
-                        )}
+                        className={cn('h-full rounded-full transition-all', cat.health_percentage >= 85 ? 'bg-healthy' : cat.health_percentage >= 70 ? 'bg-warning' : 'bg-critical')}
                         style={{ width: `${cat.health_percentage}%` }}
                       />
                     </div>
@@ -137,15 +127,13 @@ export function AssetPortfolioHealth() {
             </div>
 
             {/* Critical Assets */}
-            <div className="col-span-4 border rounded-lg p-4">
+            <div className="sm:col-span-2 lg:col-span-4 border rounded-lg p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Critical Assets Requiring Attention
               </h4>
               <div className="space-y-2">
                 {criticalAssets.length === 0 ? (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    No critical assets
-                  </div>
+                  <div className="text-center py-8 text-sm text-muted-foreground">No critical assets</div>
                 ) : (
                   criticalAssets.map(asset => (
                     <div
@@ -172,7 +160,7 @@ export function AssetPortfolioHealth() {
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Asset Hierarchy (Category → Site → Asset)
             </h4>
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs flex-wrap">
               <span className="px-2 py-1 bg-primary/10 rounded">All Categories</span>
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <span className="px-2 py-1 bg-primary/10 rounded">All Sites</span>

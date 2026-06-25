@@ -94,14 +94,14 @@ export function SitePerformanceOverview() {
           subtitle={isLoading ? 'Loading...' : `${filteredSites.length} of ${totalSites} sites`}
           icon={<MapPin className="h-4 w-4" />}
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Search sites..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="h-8 w-48 pl-8 text-xs"
+                  className="h-8 w-full sm:w-48 pl-8 text-xs"
                 />
               </div>
               <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
@@ -134,89 +134,91 @@ export function SitePerformanceOverview() {
           </div>
         ) : viewMode === 'table' ? (
           <div className="border rounded-lg overflow-hidden">
-            <div className="max-h-[400px] overflow-auto">
-              <Table className="data-table">
-                <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
-                  <TableRow>
-                    <TableHead className="w-[200px] cursor-pointer" onClick={() => handleSort('name')}>
-                      <div className="flex items-center">
-                        Site Name <SortIcon field="name" />
-                      </div>
-                    </TableHead>
-                    <TableHead>Region</TableHead>
-                    <TableHead>City</TableHead>
-                    <TableHead className="text-center cursor-pointer" onClick={() => handleSort('health_score')}>
-                      <div className="flex items-center justify-center">
-                        Health <SortIcon field="health_score" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-center cursor-pointer" onClick={() => handleSort('sla_percentage')}>
-                      <div className="flex items-center justify-center">
-                        SLA <SortIcon field="sla_percentage" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-center cursor-pointer" onClick={() => handleSort('ppm_percentage')}>
-                      <div className="flex items-center justify-center">
-                        PPM <SortIcon field="ppm_percentage" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-center cursor-pointer" onClick={() => handleSort('pending_tickets')}>
-                      <div className="flex items-center justify-center">
-                        Pending Tickets <SortIcon field="pending_tickets" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-center">Assets</TableHead>
-                    <TableHead className="text-center">Workforce</TableHead>
-                    <TableHead className="w-8"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSites.map((site: SitePerformanceSite) => (
-                    <TableRow
-                      key={site.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => openSlideOver('drill_site', { id: site.id, name: site.name })}
-                    >
-                      <TableCell className="font-medium">{site.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{site.group}</TableCell>
-                      <TableCell className="text-muted-foreground">{site.city ?? '—'}</TableCell>
-                      <TableCell className="text-center">
-                        <StatusBadge
-                          status={getHealthStatus(safeNumber(site.health_score))}
-                          label={`${safeNumber(site.health_score)}%`}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <StatusBadge
-                          status={getHealthStatus(safeNumber(site.sla_percentage))}
-                          label={`${safeNumber(site.sla_percentage)}%`}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <StatusBadge
-                          status={getHealthStatus(safeNumber(site.ppm_percentage))}
-                          label={`${safeNumber(site.ppm_percentage)}%`}
-                        />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <span>{safeNumber(site.pending_tickets, 0)}</span>
+            <div className="overflow-x-auto">
+              <div className="max-h-[400px] overflow-y-auto">
+                <Table className="data-table min-w-[900px]">
+                  <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+                    <TableRow>
+                      <TableHead className="w-[200px] cursor-pointer" onClick={() => handleSort('name')}>
+                        <div className="flex items-center">
+                          Site Name <SortIcon field="name" />
                         </div>
-                      </TableCell>
-                      <TableCell className="text-center">{safeNumber(site.total_assets, 0)}</TableCell>
-                      <TableCell className="text-center">
-                        <StatusBadge
-                          status={getHealthStatus(safeNumber(site.workforce_percentage))}
-                          label={`${safeNumber(site.workforce_percentage)}%`}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </TableCell>
+                      </TableHead>
+                      <TableHead>Region</TableHead>
+                      <TableHead>City</TableHead>
+                      <TableHead className="text-center cursor-pointer" onClick={() => handleSort('health_score')}>
+                        <div className="flex items-center justify-center">
+                          Health <SortIcon field="health_score" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-center cursor-pointer" onClick={() => handleSort('sla_percentage')}>
+                        <div className="flex items-center justify-center">
+                          SLA <SortIcon field="sla_percentage" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-center cursor-pointer" onClick={() => handleSort('ppm_percentage')}>
+                        <div className="flex items-center justify-center">
+                          PPM <SortIcon field="ppm_percentage" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-center cursor-pointer" onClick={() => handleSort('pending_tickets')}>
+                        <div className="flex items-center justify-center">
+                          Pending Tickets <SortIcon field="pending_tickets" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-center">Assets</TableHead>
+                      <TableHead className="text-center">Workforce</TableHead>
+                      <TableHead className="w-8"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSites.map((site: SitePerformanceSite) => (
+                      <TableRow
+                        key={site.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => openSlideOver('drill_site', { id: site.id, name: site.name })}
+                      >
+                        <TableCell className="font-medium">{site.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{site.group}</TableCell>
+                        <TableCell className="text-muted-foreground">{site.city ?? '—'}</TableCell>
+                        <TableCell className="text-center">
+                          <StatusBadge
+                            status={getHealthStatus(safeNumber(site.health_score))}
+                            label={`${safeNumber(site.health_score)}%`}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StatusBadge
+                            status={getHealthStatus(safeNumber(site.sla_percentage))}
+                            label={`${safeNumber(site.sla_percentage)}%`}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StatusBadge
+                            status={getHealthStatus(safeNumber(site.ppm_percentage))}
+                            label={`${safeNumber(site.ppm_percentage)}%`}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <span>{safeNumber(site.pending_tickets, 0)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">{safeNumber(site.total_assets, 0)}</TableCell>
+                        <TableCell className="text-center">
+                          <StatusBadge
+                            status={getHealthStatus(safeNumber(site.workforce_percentage))}
+                            label={`${safeNumber(site.workforce_percentage)}%`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </div>
         ) : (

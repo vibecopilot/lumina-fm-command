@@ -26,14 +26,14 @@ export function ExecutiveKPIStrip() {
 
   if (isPending || isError || !data?.ticket_sla_health?.summary) {
     return (
-      <section className="py-6 border-b bg-muted/20">
+      <section className="py-4 sm:py-6 border-b bg-muted/20">
         <div className="container">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-muted-foreground">Loading KPIs…</span>
           </div>
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-lg" />
+              <Skeleton key={i} className="h-24 sm:h-28 rounded-lg" />
             ))}
           </div>
         </div>
@@ -178,33 +178,6 @@ export function ExecutiveKPIStrip() {
         },
       ],
     },
-    // {
-    //   title: "Compliance Score",
-    //   value: data.compliance_score.summary.percentage,
-    //   trend: data.compliance_score.summary.vs_last_period,
-    //   trendDirection: (data.compliance_score.summary.vs_last_period >= 0
-    //     ? "up"
-    //     : "down") as "up" | "down",
-    //   trendLabel: "vs last period",
-    //   icon: Shield,
-    //   breakdown: [
-    //     {
-    //       label: "Compliant",
-    //       value: data.compliance_score.compliant,
-    //       status: "healthy" as const,
-    //     },
-    //     {
-    //       label: "Non-Compliant",
-    //       value: data.compliance_score.non_compliant,
-    //       status: "critical" as const,
-    //     },
-    //     {
-    //       label: "Pending",
-    //       value: data.compliance_score.pending,
-    //       status: "warning" as const,
-    //     },
-    //   ],
-    // },
     {
       title: "Visitors Today",
       value: safeNumber(data.visitors_today.summary.currently_inside, 0),
@@ -251,19 +224,20 @@ export function ExecutiveKPIStrip() {
   return (
     <section className="py-4 border-b bg-muted/20">
       <div className="container">
-        {/* Strip Header: Last Updated (main Refresh is in GlobalFilterBar) */}
+        {/* Strip Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground">Executive KPIs</span>
             {lastUpdated && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground hidden sm:inline">
                 · Last updated: {lastUpdated.toLocaleTimeString()}
               </span>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
+        {/* Responsive grid: 2 cols mobile → 4 cols tablet → 8 cols desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 xl:grid-cols-8 gap-2 sm:gap-3">
           {visibleKpis.map((kpi, idx) => (
             <KPICard
               key={idx}

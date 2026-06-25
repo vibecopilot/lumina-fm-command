@@ -447,7 +447,9 @@ export function SlideOverPanel() {
 
   const isKpiPanel = slideOver.type?.startsWith('kpi_') || slideOver.type === 'drill_asset' || slideOver.type === 'drill_workforce' || slideOver.type === 'drill_site' || slideOver.type === 'drill_ppm' || slideOver.type === 'drill_visitors';
   const isWidePanel = slideOver.type === 'drill_visitors';
-  const panelWidth = isKpiPanel ? (isWidePanel ? 'w-[720px] max-w-[95vw]' : 'w-[600px]') : 'w-[480px]';
+  const panelWidth = isKpiPanel
+    ? (isWidePanel ? 'w-full sm:w-[720px] sm:max-w-[95vw]' : 'w-full sm:w-[600px] sm:max-w-[95vw]')
+    : 'w-full sm:w-[480px] sm:max-w-[95vw]';
 
   const renderContent = () => {
     if (!slideOver.data && !isKpiPanel) {
@@ -500,7 +502,7 @@ export function SlideOverPanel() {
       />
 
       {/* Panel */}
-      <div className={`fixed right-0 top-0 h-full ${panelWidth} bg-panel-bg border-l shadow-xl z-50 animate-slide-in-right`}>
+      <div className={`fixed right-0 top-0 h-full ${panelWidth} max-w-full bg-panel-bg border-l shadow-xl z-50 animate-slide-in-right overflow-hidden`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 bg-panel-header border-b">
           <h2 className="text-sm font-semibold">{getTitle()}</h2>

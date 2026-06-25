@@ -61,9 +61,9 @@ export function GlobalFilterBar() {
   return (
     <div className="sticky top-0 z-40 bg-background border-b">
       <div className="container py-3">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           {/* Left: Logo & Title */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div
               className="flex items-center justify-center 
                         w-16 h-10 rounded-lg bg-primary shrink-0"
@@ -71,23 +71,22 @@ export function GlobalFilterBar() {
               <img
                 src="/horizon_industrial_parks_logo.jpeg"
                 alt="Horizon Industrial Parks Limited"
-                // className="w-16 h-10 object-contain"
+              // className="w-16 h-10 object-contain"
               />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-foreground leading-tight">
+              <h1 className="text-sm sm:text-lg font-semibold text-foreground leading-tight truncate">
                 Horizon Industrial Parks Limited
               </h1>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 Enterprise Facility Management
               </p>
             </div>
           </div>
 
           {/* Center: Filters */}
-          <div className="flex items-center gap-2 flex-1 justify-center max-w-3xl">
-            {/* Date Range */}
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 overflow-x-auto pb-1 sm:justify-center max-w-full scrollbar-hide">            {/* Date Range */}
+            <div className="flex items-center gap-2 shrink-0">
               {/* Date Range Select */}
 
               <Select
@@ -137,7 +136,7 @@ export function GlobalFilterBar() {
                 updateFilter("group_id", value === "all" ? null : value)
               }
             >
-              <SelectTrigger className="w-44 h-8 text-xs">
+              <SelectTrigger className="w-32 sm:w-44 h-8 text-xs shrink-0">
                 <SelectValue placeholder="All Groups" />
               </SelectTrigger>
               <SelectContent>
@@ -163,7 +162,7 @@ export function GlobalFilterBar() {
                 updateFilter("site_id", value === "all" ? null : value)
               }
             >
-              <SelectTrigger className="w-40 h-8 text-xs">
+              <SelectTrigger className="w-32 sm:w-44 h-8 text-xs shrink-0">
                 <SelectValue placeholder="All Sites" />
               </SelectTrigger>
               <SelectContent className="max-h-64">
@@ -194,7 +193,7 @@ export function GlobalFilterBar() {
                 updateFilter("category_id", value === "all" ? null : value)
               }
             >
-              <SelectTrigger className="w-32 h-8 text-xs">
+              <SelectTrigger className="w-28 sm:w-32 h-8 text-xs shrink-0">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -283,7 +282,7 @@ export function GlobalFilterBar() {
         </div>
 
         {/* Bottom sub-row: Last Updated + Global Refresh */}
-        <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-dashed border-border/50">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-1.5 pt-1.5 border-t border-dashed border-border/50">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>
               {lastUpdated
