@@ -153,7 +153,7 @@ export function SitePerformanceOverview() {
                       </TableHead>
                       <TableHead className="text-center cursor-pointer" onClick={() => handleSort('sla_percentage')}>
                         <div className="flex items-center justify-center">
-                          SLA <SortIcon field="sla_percentage" />
+                          TAT <SortIcon field="sla_percentage" />
                         </div>
                       </TableHead>
                       <TableHead className="text-center cursor-pointer" onClick={() => handleSort('ppm_percentage')}>
@@ -161,13 +161,13 @@ export function SitePerformanceOverview() {
                           PPM <SortIcon field="ppm_percentage" />
                         </div>
                       </TableHead>
-                      <TableHead className="text-center cursor-pointer" onClick={() => handleSort('pending_tickets')}>
+                      {/* <TableHead className="text-center cursor-pointer" onClick={() => handleSort('pending_tickets')}>
                         <div className="flex items-center justify-center">
                           Pending Tickets <SortIcon field="pending_tickets" />
                         </div>
                       </TableHead>
                       <TableHead className="text-center">Assets</TableHead>
-                      <TableHead className="text-center">Workforce</TableHead>
+                      <TableHead className="text-center">Workforce</TableHead> */}
                       <TableHead className="w-8"></TableHead>
                     </TableRow>
                   </TableHeader>

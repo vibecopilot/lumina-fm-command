@@ -186,7 +186,7 @@ export function TicketSLAPanel() {
   return (
     <div>
       <PanelHeader
-        title="Ticket SLA Health"
+        title="Ticket TAT Health"
         icon={Ticket}
         lastUpdated={lastUpdated}
         onRefresh={() => refetch()}
@@ -200,7 +200,7 @@ export function TicketSLAPanel() {
         <Tabs defaultValue="overview">
           <TabsList className="w-full mb-4">
             <TabsTrigger value="overview" className="flex-1 text-xs">Overview</TabsTrigger>
-            <TabsTrigger value="sla" className="flex-1 text-xs">SLA Breakdown</TabsTrigger>
+            <TabsTrigger value="sla" className="flex-1 text-xs">TAT Breakdown</TabsTrigger>
             <TabsTrigger value="category" className="flex-1 text-xs">By Category</TabsTrigger>
             <TabsTrigger value="tickets" className="flex-1 text-xs">Tickets</TabsTrigger>
           </TabsList>
