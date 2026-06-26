@@ -78,19 +78,19 @@ export function ServiceDeskSLA() {
                 {slaStatus && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-2 bg-healthy-bg rounded-md">
-                      <span className="text-sm">Within SLA</span>
+                      <span className="text-sm">Within TAT</span>
                       <span className="text-lg font-bold text-healthy">{slaStatus.within_sla}</span>
                     </div>
-                    <div className="flex items-center justify-between p-2 bg-warning-bg rounded-md">
+                    {/* <div className="flex items-center justify-between p-2 bg-warning-bg rounded-md">
                       <span className="text-sm">At Risk</span>
                       <span className="text-lg font-bold text-warning">{slaStatus.at_risk}</span>
-                    </div>
+                    </div> */}
                     <div className="flex items-center justify-between p-2 bg-critical-bg rounded-md">
-                      <span className="text-sm">Breached</span>
+                      <span className="text-sm">Outside TAT</span>
                       <span className="text-lg font-bold text-critical">{slaStatus.breached}</span>
                     </div>
                     <div className="pt-2 border-t text-xs text-muted-foreground flex justify-between">
-                      <span>SLA Compliance</span>
+                      <span>TAT Compliance</span>
                       <span className="font-semibold text-foreground">{slaStatus.sla_percentage}%</span>
                     </div>
                     <div className="pt-2 border-t text-xs text-muted-foreground flex justify-between">
