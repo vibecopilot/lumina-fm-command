@@ -199,7 +199,7 @@ export function SitePerformanceOverview() {
                             label={`${safeNumber(site.ppm_percentage)}%`}
                           />
                         </TableCell>
-                        <TableCell className="text-center">
+                        {/* <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
                             <span>{safeNumber(site.pending_tickets, 0)}</span>
                           </div>
@@ -210,7 +210,7 @@ export function SitePerformanceOverview() {
                             status={getHealthStatus(safeNumber(site.workforce_percentage))}
                             label={`${safeNumber(site.workforce_percentage)}%`}
                           />
-                        </TableCell>
+                        </TableCell> */}
                         <TableCell>
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </TableCell>

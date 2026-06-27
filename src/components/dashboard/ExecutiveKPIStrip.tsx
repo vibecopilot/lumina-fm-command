@@ -89,16 +89,21 @@ export function ExecutiveKPIStrip() {
         icon: ClipboardCheck,
         kpiType: "kpi_ppm" as SlideOverType,
         breakdown: [
+            {
+            label: "Total Scheduled",
+            value: safeNumber(data.ppm_compliance.summary.total, 0),
+            status: "healthy",
+          },
           {
             label: "Completed",
             value: safeNumber(data.ppm_compliance.summary.completed, 0),
             status: "healthy",
           },
-          {
-            label: "Missed",
-            value: safeNumber(data.ppm_compliance.summary.missed, 0),
-            status: "critical",
-          },
+          // {
+          //   label: "Missed",
+          //   value: safeNumber(data.ppm_compliance.summary.missed, 0),
+          //   status: "critical",
+          // },
           {
             label: "Overdue",
             value: safeNumber(data.ppm_compliance.summary.overdue, 0),

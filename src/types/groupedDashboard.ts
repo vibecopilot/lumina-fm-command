@@ -40,6 +40,7 @@ export interface DashboardKPIsResponse {
   };
   ppm_compliance: {
     summary: {
+      total:number;
       percentage: number;
       prev_percentage: number;
       vs_last_period: number;

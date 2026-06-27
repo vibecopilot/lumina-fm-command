@@ -208,7 +208,7 @@ export function TicketSLAPanel() {
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-3 gap-2">
               <StatCard label="Total Tickets" value={data!.summary.total} />
-              <StatCard label="SLA %" value={`${data!.sla_status.sla_percentage}%`} color={data!.sla_status.sla_percentage >= 85 ? 'text-healthy' : 'text-critical'} />
+              <StatCard label="TAT %" value={`${data!.sla_status.sla_percentage}%`} color={data!.sla_status.sla_percentage >= 85 ? 'text-healthy' : 'text-critical'} />
               <StatCard label="Avg Resolution" value={`${data!.avg_resolution_time_hours}h`} />
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -435,7 +435,7 @@ export function PPMCompliancePanel() {
               <StatCard label="Completion %" value={`${data!.ppm.completion_percentage}%`} color={data!.ppm.completion_percentage >= 85 ? 'text-healthy' : 'text-critical'} />
               <StatCard label="Completed" value={data!.ppm.completed} color="text-healthy" />
               <StatCard label="Overdue" value={data!.ppm.overdue} color="text-critical" />
-              <StatCard label="Missed" value={data!.ppm.missed} color="text-warning" />
+              {/* <StatCard label="Missed" value={data!.ppm.missed} color="text-warning" /> */}
               <StatCard label="Pending" value={data!.ppm.pending} color="text-info" />
             </div>
 
@@ -615,7 +615,7 @@ export function AssetHealthPanel() {
               <StatCard label="Operational" value={data!.summary.operational} color="text-healthy" />
               <StatCard label="Maintenance" value={data!.summary.maintenance} color="text-warning" />
               <StatCard label="Critical" value={data!.summary.critical} color="text-critical" />
-              <StatCard label="Offline" value={data!.summary.offline} color="text-neutral" />
+              {/* <StatCard label="Offline" value={data!.summary.offline} color="text-neutral" /> */}
             </div>
 
             <SectionTitle>Asset Status Distribution</SectionTitle>
