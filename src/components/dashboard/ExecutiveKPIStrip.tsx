@@ -72,7 +72,7 @@ export function ExecutiveKPIStrip() {
             value: safeNumber(data.ticket_sla_health.summary.within_sla, 0),
             status: "healthy",
           },
-          
+
           {
             label: "Outside TAT",
             value: safeNumber(data.ticket_sla_health.summary.breached, 0),
@@ -89,7 +89,7 @@ export function ExecutiveKPIStrip() {
         icon: ClipboardCheck,
         kpiType: "kpi_ppm" as SlideOverType,
         breakdown: [
-            {
+          {
             label: "Total Scheduled",
             value: safeNumber(data.ppm_compliance.summary.total, 0),
             status: "healthy",
@@ -120,8 +120,8 @@ export function ExecutiveKPIStrip() {
         icon: Wrench,
         kpiType: "kpi_asset" as SlideOverType,
         breakdown: [
-           {
-            label: "Total Scheduled",
+          {
+            label: "Total Asset",
             value: safeNumber(data.asset_health.summary.total, 0),
             status: "healthy" as const,
           },

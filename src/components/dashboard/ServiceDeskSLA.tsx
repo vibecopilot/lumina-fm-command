@@ -18,12 +18,13 @@ export function ServiceDeskSLA() {
 
   const ticketsByStatus = summary
     ? [
-        { status: 'open', label: 'Open', count: summary.open },
-        { status: 'in_progress', label: 'In Progress', count: summary.in_progress },
-        { status: 'pending', label: 'Pending', count: summary.pending },
-        { status: 'resolved', label: 'Resolved', count: summary.resolved },
-        { status: 'closed', label: 'Closed', count: summary.closed },
-      ]
+      { status: 'total', label: 'Total', count: summary.total },
+      { status: 'open', label: 'Open', count: summary.open },
+      { status: 'in_progress', label: 'In Progress', count: summary.in_progress },
+      { status: 'pending', label: 'Pending', count: summary.pending },
+      { status: 'resolved', label: 'Resolved', count: summary.resolved },
+      { status: 'closed', label: 'Closed', count: summary.closed },
+    ]
     : [];
 
   const categoryChartData = (data?.tickets_by_category ?? [])

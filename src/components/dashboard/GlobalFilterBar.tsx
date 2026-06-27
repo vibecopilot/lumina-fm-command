@@ -170,14 +170,17 @@ export function GlobalFilterBar() {
                   All Sites
                 </SelectItem>
                 {sites
-                  .filter(
-                    (site) =>
-                      !filters.group_id || site.group_id === filters.group_id,
-                  )
+                  .filter((site) => {
+                    // Hide HO site
+                    if (site.name === "HO") return false;
+
+                    // Apply group filter
+                    return !filters.group_id || site.group_id === filters.group_id;
+                  })
                   .map((site) => (
                     <SelectItem
                       key={site.id}
-                      value={site.id}
+                      value={String(site.id)}
                       className="text-xs"
                     >
                       {site.name}
