@@ -14,6 +14,10 @@ export function WorkforceTracking() {
   const summary = data?.summary;
   const byVendor = data?.by_vendor ?? [];
   const byWorkType = data?.by_work_type ?? [];
+  const totalWorkforceByType = byWorkType.reduce(
+    (sum, item) => sum + (item.count ?? 0),
+    0
+  );
 
   const availabilityRate = summary?.availability_percentage ?? 0;
 
@@ -144,6 +148,25 @@ export function WorkforceTracking() {
                         style={{ cursor: 'pointer' }}
                       >
                         {workTypeChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                        <text
+                          x="50%"
+                          y="62%"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="fill-muted-foreground text-[10px]"
+                        >
+                          Total :
+                        </text>
+
+                        <text
+                          x="50%"
+                          y="48%"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="fill-foreground text-lg font-bold"
+                        >
+                          {summary?.total ?? 0}
+                        </text>
                       </Pie>
                       <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
                     </PieChart>
