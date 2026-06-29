@@ -66,7 +66,7 @@ export function PPMSoftServices() {
                   {[
                     { label: 'Completed', value: ppm?.completed ?? 0, cls: 'text-healthy' },
                     { label: 'Pending', value: ppm?.pending ?? 0, cls: '' },
-                    { label: 'Missed', value: ppm?.missed ?? 0, cls: 'text-critical' },
+                    // { label: 'Missed', value: ppm?.missed ?? 0, cls: 'text-critical' },
                     { label: 'Overdue', value: ppm?.overdue ?? 0, cls: 'text-critical' },
                   ].map(row => (
                     <div key={row.label} className="flex items-center justify-between text-sm">

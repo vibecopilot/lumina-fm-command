@@ -33,6 +33,11 @@ export function SitePerformanceOverview() {
   const filteredSites = useMemo(() => {
     let result = [...(data?.sites ?? [])];
 
+    result = result.filter(
+      (site) => site.name?.trim().toUpperCase() !== "HO"
+    );
+
+
     if (search) {
       const searchLower = search.toLowerCase();
       result = result.filter(s =>
