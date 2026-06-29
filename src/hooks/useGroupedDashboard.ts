@@ -107,15 +107,18 @@ function filtersToApiParams(
 }
 
 const QUERY_DEFAULTS = {
-  staleTime: 60_000,
+  staleTime: 0,
   retry: 1,
+  refetchOnWindowFocus: false,
 } as const;
 
 export function useDashboardKPIs(filters: FilterState) {
   const { currentRole } = useDashboard();
+
   const params = filtersToApiParams(filters, mapRole(currentRole));
+
   return useQuery({
-    queryKey: ['grouped_dashboard', 'kpis', currentRole, params],
+    queryKey: ["grouped_dashboard", "kpis", currentRole, filters.date_range, params],
     queryFn: () => fetchDashboardKPIs(params),
     ...QUERY_DEFAULTS,
   });
@@ -125,7 +128,7 @@ export function useSitePerformance(filters: FilterState) {
   const { currentRole } = useDashboard();
   const params = filtersToApiParams(filters, mapRole(currentRole));
   return useQuery({
-    queryKey: ['grouped_dashboard', 'site_performance', currentRole, params],
+    queryKey: ['grouped_dashboard', 'site_performance', currentRole, filters.date_range, params],
     queryFn: () => fetchSitePerformance(params),
     ...QUERY_DEFAULTS,
   });
@@ -137,7 +140,7 @@ export function useSiteDrill(filters: FilterState, siteId: number | string | nul
   params.site_id = siteId ?? 0;
   const enabled = Boolean(siteId);
   return useQuery({
-    queryKey: ['grouped_dashboard', 'site_drill', currentRole, params],
+    queryKey: ['grouped_dashboard', 'site_drill', currentRole, filters.date_range, params],
     queryFn: () => fetchSiteDrill(params),
     ...QUERY_DEFAULTS,
     enabled,
@@ -148,7 +151,7 @@ export function useAssetPortfolio(filters: FilterState) {
   const { currentRole } = useDashboard();
   const params = filtersToApiParams(filters, mapRole(currentRole));
   return useQuery({
-    queryKey: ['grouped_dashboard', 'asset_portfolio', currentRole, params],
+    queryKey: ['grouped_dashboard', 'asset_portfolio', currentRole, filters.date_range, params],
     queryFn: () => fetchAssetPortfolio(params),
     ...QUERY_DEFAULTS,
   });
@@ -160,7 +163,7 @@ export function useAssetDrill(filters: FilterState, drillParams: { status?: stri
   Object.assign(params, drillParams);
   const enabled = Boolean(drillParams.status || drillParams.category);
   return useQuery({
-    queryKey: ['grouped_dashboard', 'asset_drill', currentRole, params],
+    queryKey: ['grouped_dashboard', 'asset_drill', currentRole, filters.date_range, params],
     queryFn: () => fetchAssetDrill(params),
     ...QUERY_DEFAULTS,
     enabled,
@@ -173,7 +176,7 @@ export function useWorkforceDrill(filters: FilterState, drillParams: { vendor?: 
   Object.assign(params, drillParams);
   const enabled = Boolean(drillParams.vendor || drillParams.work_type || drillParams.attendance);
   return useQuery({
-    queryKey: ['grouped_dashboard', 'workforce_drill', currentRole, params],
+    queryKey: ['grouped_dashboard', 'workforce_drill', currentRole, filters.date_range, params],
     queryFn: () => fetchWorkforceDrill(params),
     ...QUERY_DEFAULTS,
     enabled,
@@ -186,7 +189,7 @@ export function usePPMDrill(filters: FilterState, category: string | null) {
   params.category = category ?? '';
   const enabled = Boolean(category);
   return useQuery({
-    queryKey: ['grouped_dashboard', 'ppm_drill', currentRole, params],
+    queryKey: ['grouped_dashboard', 'ppm_drill', currentRole, filters.date_range, params],
     queryFn: () => fetchPPMDrill(params),
     ...QUERY_DEFAULTS,
     enabled,
@@ -197,7 +200,7 @@ export function useServiceDesk(filters: FilterState) {
   const { currentRole } = useDashboard();
   const params = filtersToApiParams(filters, mapRole(currentRole));
   return useQuery({
-    queryKey: ['grouped_dashboard', 'service_desk', currentRole, params],
+    queryKey: ['grouped_dashboard', 'service_desk', currentRole, filters.date_range, params],
     queryFn: () => fetchServiceDesk(params),
     ...QUERY_DEFAULTS,
   });
@@ -207,7 +210,7 @@ export function usePPMOperations(filters: FilterState) {
   const { currentRole } = useDashboard();
   const params = filtersToApiParams(filters, mapRole(currentRole));
   return useQuery({
-    queryKey: ['grouped_dashboard', 'ppm_operations', currentRole, params],
+    queryKey: ['grouped_dashboard', 'ppm_operations', currentRole, filters.date_range, params],
     queryFn: () => fetchPPMOperations(params),
     ...QUERY_DEFAULTS,
   });
@@ -217,7 +220,7 @@ export function useWorkforce(filters: FilterState) {
   const { currentRole } = useDashboard();
   const params = filtersToApiParams(filters, mapRole(currentRole));
   return useQuery({
-    queryKey: ['grouped_dashboard', 'workforce', currentRole, params],
+    queryKey: ['grouped_dashboard', 'workforce', currentRole, filters.date_range, params],
     queryFn: () => fetchWorkforce(params),
     ...QUERY_DEFAULTS,
   });
@@ -227,7 +230,7 @@ export function useCompliance(filters: FilterState) {
   const { currentRole } = useDashboard();
   const params = filtersToApiParams(filters, mapRole(currentRole));
   return useQuery({
-    queryKey: ['grouped_dashboard', 'compliance', currentRole, params],
+    queryKey: ['grouped_dashboard', 'compliance', currentRole, filters.date_range, params],
     queryFn: () => fetchCompliance(params),
     ...QUERY_DEFAULTS,
   });
@@ -237,7 +240,7 @@ export function useVisitorsDetail(filters: FilterState) {
   const { currentRole } = useDashboard();
   const params = filtersToApiParams(filters, mapRole(currentRole));
   return useQuery({
-    queryKey: ['grouped_dashboard', 'visitors_detail', currentRole, params],
+    queryKey: ['grouped_dashboard', 'visitors_detail', currentRole, filters.date_range, params],
     queryFn: () => fetchVisitorsDetail(params),
     ...QUERY_DEFAULTS,
   });
@@ -248,7 +251,7 @@ export function useVisitorsDrill(filters: FilterState, drillParams: { category?:
   const params = filtersToApiParams(filters, mapRole(currentRole)) as VisitorsDrillParams;
   Object.assign(params, drillParams);
   return useQuery({
-    queryKey: ['grouped_dashboard', 'visitors_drill', currentRole, params],
+    queryKey: ['grouped_dashboard', 'visitors_drill', currentRole, filters.date_range, params],
     queryFn: () => fetchVisitorsDrill(params),
     ...QUERY_DEFAULTS,
   });

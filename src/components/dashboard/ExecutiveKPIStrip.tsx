@@ -91,7 +91,7 @@ export function ExecutiveKPIStrip() {
         breakdown: [
           {
             label: "Total Scheduled",
-            value: safeNumber(data.ppm_compliance.summary.total, 0),
+            value: safeNumber(data.ppm.total, 0),
             status: "healthy",
           },
           {
@@ -131,7 +131,7 @@ export function ExecutiveKPIStrip() {
             status: "healthy" as const,
           },
           {
-            label: "Maintenance",
+            label: "Breakdown",
             value: safeNumber(data.asset_health.summary.maintenance, 0),
             status: "warning" as const,
           },
