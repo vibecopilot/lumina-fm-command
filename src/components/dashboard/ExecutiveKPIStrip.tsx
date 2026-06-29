@@ -17,14 +17,15 @@ import { useState, useEffect } from "react";
 
 export function ExecutiveKPIStrip() {
   const { openSlideOver, currentRole, filters } = useDashboard();
-  const { data, isPending, isError, dataUpdatedAt } = useDashboardKPIs(filters);
+  const { data, isPending, isFetching, isError, dataUpdatedAt } = useDashboardKPIs(filters);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     if (dataUpdatedAt) setLastUpdated(new Date(dataUpdatedAt));
   }, [dataUpdatedAt]);
 
-  if (isPending || isError || !data?.ticket_sla_health?.summary) {
+  // Show skeleton while loading OR while refetching after a filter change
+  if (isPending || isFetching || isError || !data?.ticket_sla_health?.summary) {
     return (
       <section className="py-4 sm:py-6 border-b bg-muted/20">
         <div className="container">
@@ -55,84 +56,84 @@ export function ExecutiveKPIStrip() {
   }> = [
       {
         title: "Service Request TAT",
-        value: safeNumber(data.ticket_sla_health.summary.percentage),
-        trend: safeNumber(data.ticket_sla_health.summary.vs_last_period),
-        trendDirection: getTrendDirection(data.ticket_sla_health.summary.vs_last_period),
+        value: safeNumber(data?.ticket_sla_health?.summary?.percentage),
+        trend: safeNumber(data?.ticket_sla_health?.summary?.vs_last_period),
+        trendDirection: getTrendDirection(data?.ticket_sla_health?.summary?.vs_last_period),
         trendLabel: "vs last period",
         icon: Ticket,
         kpiType: "kpi_ticket_sla" as SlideOverType,
         breakdown: [
           {
             label: "Total",
-            value: safeNumber(data.ticket_sla_health.summary.total, 0),
+            value: safeNumber(data?.ticket_sla_health?.summary?.total, 0),
             status: "warning",
           },
           {
             label: "Within TAT",
-            value: safeNumber(data.ticket_sla_health.summary.within_sla, 0),
+            value: safeNumber(data?.ticket_sla_health?.summary?.within_sla, 0),
             status: "healthy",
           },
 
           {
             label: "Outside TAT",
-            value: safeNumber(data.ticket_sla_health.summary.breached, 0),
+            value: safeNumber(data?.ticket_sla_health?.summary?.breached, 0),
             status: "critical",
           },
         ],
       },
       {
         title: "PPM Compliance",
-        value: safeNumber(data.ppm_compliance.summary.percentage),
-        trend: safeNumber(data.ppm_compliance.summary.vs_last_period),
-        trendDirection: getTrendDirection(data.ppm_compliance.summary.vs_last_period),
+        value: safeNumber(data?.ppm_compliance?.summary?.percentage),
+        trend: safeNumber(data?.ppm_compliance?.summary?.vs_last_period),
+        trendDirection: getTrendDirection(data?.ppm_compliance?.summary?.vs_last_period),
         trendLabel: "vs last period",
         icon: ClipboardCheck,
         kpiType: "kpi_ppm" as SlideOverType,
         breakdown: [
           {
             label: "Total Scheduled",
-            value: safeNumber(data.ppm.total, 0),
+            value: safeNumber(data?.ppm?.total, 0),
             status: "healthy",
           },
           {
             label: "Completed",
-            value: safeNumber(data.ppm_compliance.summary.completed, 0),
+            value: safeNumber(data?.ppm_compliance?.summary?.completed, 0),
             status: "healthy",
           },
           // {
           //   label: "Missed",
-          //   value: safeNumber(data.ppm_compliance.summary.missed, 0),
+          //   value: safeNumber(data?.ppm_compliance?.summary?.missed, 0),
           //   status: "critical",
           // },
           {
             label: "Overdue",
-            value: safeNumber(data.ppm_compliance.summary.overdue, 0),
+            value: safeNumber(data?.ppm_compliance?.summary?.overdue, 0),
             status: "warning",
           },
         ],
       },
       {
         title: "Asset Health",
-        value: safeNumber(data.asset_health.summary.percentage),
-        trend: safeNumber(data.asset_health.summary.vs_last_period),
-        trendDirection: getTrendDirection(data.asset_health.summary.vs_last_period),
+        value: safeNumber(data?.asset_health?.summary?.percentage),
+        trend: safeNumber(data?.asset_health?.summary?.vs_last_period),
+        trendDirection: getTrendDirection(data?.asset_health?.summary?.vs_last_period),
         trendLabel: "vs last period",
         icon: Wrench,
         kpiType: "kpi_asset" as SlideOverType,
         breakdown: [
           {
             label: "Total Asset",
-            value: safeNumber(data.asset_health.summary.total, 0),
+            value: safeNumber(data?.asset_health?.summary?.total, 0),
             status: "healthy" as const,
           },
           {
             label: "Operational",
-            value: safeNumber(data.asset_health.summary.operational, 0),
+            value: safeNumber(data?.asset_health?.summary?.operational, 0),
             status: "healthy" as const,
           },
           {
             label: "Breakdown",
-            value: safeNumber(data.asset_health.summary.maintenance, 0),
+            value: safeNumber(data?.asset_health?.summary?.maintenance, 0),
             status: "warning" as const,
           },
           // {
@@ -191,10 +192,10 @@ export function ExecutiveKPIStrip() {
       // },
       {
         title: "Visitors Today",
-        value: safeNumber(data.visitors_today.summary.currently_inside, 0),
+        value: safeNumber(data?.visitors_today?.summary?.currently_inside, 0),
         unit: "",
-        trend: safeNumber(data.visitors_today.summary.vs_yesterday),
-        trendDirection: getTrendDirection(data.visitors_today.summary.vs_yesterday),
+        trend: safeNumber(data?.visitors_today?.summary?.vs_yesterday),
+        trendDirection: getTrendDirection(data?.visitors_today?.summary?.vs_yesterday),
         trendLabel: "vs yesterday",
         icon: UserCheck,
         kpiType: "kpi_visitors" as SlideOverType,
@@ -202,22 +203,22 @@ export function ExecutiveKPIStrip() {
         breakdown: [
           {
             label: "Checked In",
-            value: safeNumber(data.visitors_today.summary.checked_in, 0),
+            value: safeNumber(data?.visitors_today?.summary?.checked_in, 0),
             status: "healthy" as const,
           },
           {
             label: "Checked Out",
-            value: safeNumber(data.visitors_today.summary.checked_out, 0),
+            value: safeNumber(data?.visitors_today?.summary?.checked_out, 0),
             status: "neutral" as const,
           },
         ],
       },
       {
         title: "Avg Resolution Time",
-        value: safeNumber(data.avg_resolution_time.summary.hours),
+        value: safeNumber(data?.avg_resolution_time?.summary?.hours),
         unit: "hrs",
-        trend: safeNumber(data.avg_resolution_time.summary.vs_last_period),
-        trendDirection: safeNumber(data.avg_resolution_time.summary.vs_last_period) <= 0 ? "down" : "up",
+        trend: safeNumber(data?.avg_resolution_time?.summary?.vs_last_period),
+        trendDirection: safeNumber(data?.avg_resolution_time?.summary?.vs_last_period) <= 0 ? "down" : "up",
         trendLabel: "vs last period",
         icon: Clock,
         kpiType: "kpi_avg_resolution" as SlideOverType,

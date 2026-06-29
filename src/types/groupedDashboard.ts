@@ -40,7 +40,7 @@ export interface DashboardKPIsResponse {
   };
   ppm_compliance: {
     summary: {
-      total:number;
+      total: number;
       percentage: number;
       prev_percentage: number;
       vs_last_period: number;
@@ -57,22 +57,21 @@ export interface DashboardKPIsResponse {
     };
     records: any;
   };
-    ppm: {
-   
-      total:number;
-      percentage: number;
-      prev_percentage: number;
-      vs_last_period: number;
-      completed: number;
-      prev_completed: number;
-      pending: number;
-      prev_pending: number;
-      missed: number;
-      prev_missed: number;
-      overdue: number;
-      prev_overdue: number;
-      total_scheduled: number;
-      prev_total_scheduled: number;
+  ppm: {
+    total: number;
+    percentage: number;
+    prev_percentage: number;
+    vs_last_period: number;
+    completed: number;
+    prev_completed: number;
+    pending: number;
+    prev_pending: number;
+    missed: number;
+    prev_missed: number;
+    overdue: number;
+    prev_overdue: number;
+    total_scheduled: number;
+    prev_total_scheduled: number;
     records: any;
   };
   asset_health: {

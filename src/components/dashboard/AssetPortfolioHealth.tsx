@@ -18,7 +18,7 @@ export function AssetPortfolioHealth() {
   const pieData = summary
     ? [
         { name: 'Operational', value: summary.operational, color: 'hsl(142, 71%, 45%)' },
-        { name: 'Maintenance', value: summary.maintenance, color: 'hsl(38, 92%, 50%)' },
+        { name: 'BreakDown', value: summary.maintenance, color: 'hsl(38, 92%, 50%)' },
         { name: 'Offline', value: summary.offline, color: 'hsl(215, 16%, 47%)' },
         { name: 'Critical', value: summary.critical, color: 'hsl(0, 84%, 60%)' },
       ]
