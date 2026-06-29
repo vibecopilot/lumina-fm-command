@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { UserRole, Site, Ticket, Asset, Vendor, Alert } from '@/data/mockData';
 
 export interface FilterState {
@@ -71,6 +72,7 @@ const defaultFilters: FilterState = {
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [currentRole, setCurrentRole] = useState<UserRole>('ceo');
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [slideOver, setSlideOver] = useState<SlideOverState>({
@@ -83,11 +85,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const updateFilter = useCallback(<K extends keyof FilterState>(key: K, value: FilterState[K]) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-  }, []);
+    // Invalidate all dashboard queries so every panel re-fetches with the new filter
+    queryClient.invalidateQueries({ queryKey: ['grouped_dashboard'] });
+  }, [queryClient]);
 
   const resetFilters = useCallback(() => {
     setFilters(defaultFilters);
-  }, []);
+    queryClient.invalidateQueries({ queryKey: ['grouped_dashboard'] });
+  }, [queryClient]);
 
   const openSlideOver = useCallback((type: SlideOverType, data: SlideOverState['data']) => {
     setSlideOver({ isOpen: true, type, data });
