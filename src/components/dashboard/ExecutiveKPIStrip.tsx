@@ -25,7 +25,7 @@ export function ExecutiveKPIStrip() {
   }, [dataUpdatedAt]);
 
   // Show skeleton while loading OR while refetching after a filter change
-  if (isPending || isFetching || isError || !data?.ticket_sla_health?.summary) {
+  if (isPending || isFetching || isError || !data) {
     return (
       <section className="py-4 sm:py-6 border-b bg-muted/20">
         <div className="container">
@@ -92,12 +92,18 @@ export function ExecutiveKPIStrip() {
         breakdown: [
           {
             label: "Total Scheduled",
-            value: safeNumber(data?.ppm?.total, 0) || safeNumber(data?.ppm_compliance?.summary?.total, 0),
+            value:
+              safeNumber(data?.ppm?.total, 0) ||
+              safeNumber(data?.ppm?.total_scheduled, 0) ||
+              safeNumber(data?.ppm_compliance?.summary?.total_scheduled, 0) ||
+              safeNumber(data?.ppm_compliance?.summary?.total, 0),
             status: "healthy",
           },
           {
             label: "Completed",
-            value: safeNumber(data?.ppm_compliance?.summary?.completed, 0),
+            value:
+              safeNumber(data?.ppm?.completed, 0) ||
+              safeNumber(data?.ppm_compliance?.summary?.completed, 0),
             status: "healthy",
           },
           // {
@@ -107,7 +113,9 @@ export function ExecutiveKPIStrip() {
           // },
           {
             label: "Overdue",
-            value: safeNumber(data?.ppm_compliance?.summary?.overdue, 0),
+            value:
+              safeNumber(data?.ppm?.overdue, 0) ||
+              safeNumber(data?.ppm_compliance?.summary?.overdue, 0),
             status: "warning",
           },
         ],
