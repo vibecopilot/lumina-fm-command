@@ -92,7 +92,7 @@ export function ExecutiveKPIStrip() {
         breakdown: [
           {
             label: "Total Scheduled",
-            value: safeNumber(data?.ppm?.total, 0),
+            value: safeNumber(data?.ppm?.total, 0) || safeNumber(data?.ppm_compliance?.summary?.total, 0),
             status: "healthy",
           },
           {
