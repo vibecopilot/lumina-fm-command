@@ -613,7 +613,7 @@ export function AssetHealthPanel() {
               <StatCard label="Total Assets" value={data!.summary.total} />
               <StatCard label="Health %" value={`${data!.summary.health_percentage}%`} color={data!.summary.health_percentage >= 85 ? 'text-healthy' : 'text-critical'} />
               <StatCard label="Operational" value={data!.summary.operational} color="text-healthy" />
-              <StatCard label="Maintenance" value={data!.summary.maintenance} color="text-warning" />
+              <StatCard label="Breakdown" value={data!.summary.maintenance} color="text-warning" />
               <StatCard label="Critical" value={data!.summary.critical} color="text-critical" />
               {/* <StatCard label="Offline" value={data!.summary.offline} color="text-neutral" /> */}
             </div>
