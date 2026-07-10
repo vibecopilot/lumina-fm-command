@@ -578,7 +578,7 @@ export function AssetHealthPanel() {
     if (!data) return [];
     return [
       { name: 'Operational', value: data.summary.operational, color: COLORS.healthy },
-      { name: 'Maintenance', value: data.summary.maintenance, color: COLORS.warning },
+      { name: 'Breakdown', value: data.summary.maintenance, color: COLORS.warning },
       { name: 'Critical', value: data.summary.critical, color: COLORS.critical },
       { name: 'Offline', value: data.summary.offline, color: COLORS.neutral },
     ].filter(d => d.value > 0);
