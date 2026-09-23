@@ -58,7 +58,7 @@ function PanelHeader({
       </div>
       <div className="flex items-center gap-1.5">
         {onExport && (
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={onExport}>
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-1 text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }} onClick={onExport}>
             <Download className="h-3 w-3" /> Export
           </Button>
         )}
@@ -72,9 +72,9 @@ function PanelHeader({
 
 function StatCard({ label, value, color, onClick, active }: { label: string; value: string | number; color?: string; onClick?: () => void; active?: boolean }) {
   return (
-    <div 
+    <div
       className={cn(
-        'bg-muted/40 rounded-lg p-3 transition-all',
+        'bg-muted/80 rounded-lg p-3 transition-all',
         onClick && 'cursor-pointer hover:bg-muted/60 hover:ring-2 hover:ring-primary/30',
         active && 'ring-2 ring-primary bg-primary/10'
       )}
@@ -134,7 +134,7 @@ export function SiteDrillPanel() {
   // Workforce drill data when filter is selected
   const workforceDrillParams = useMemo(() => {
     if (!workforceFilter) return {};
-    return workforceFilter.type === 'vendor' 
+    return workforceFilter.type === 'vendor'
       ? { vendor: workforceFilter.value }
       : { work_type: workforceFilter.value };
   }, [workforceFilter]);
@@ -213,7 +213,7 @@ export function SiteDrillPanel() {
   const filteredPPMRecords = useMemo(() => {
     if (!ppmDrillData?.records) return [];
     if (ppmStatusFilter === 'all') return ppmDrillData.records;
-    
+
     return ppmDrillData.records.filter(r => {
       const status = r.status?.toLowerCase() ?? '';
       if (ppmStatusFilter === 'completed') {
@@ -314,7 +314,7 @@ export function SiteDrillPanel() {
       </div>
 
       <Tabs defaultValue="overview">
-        <TabsList className="w-full mb-4">
+        <TabsList className="w-full mb-4 text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}>
           <TabsTrigger value="overview" className="flex-1 text-xs">Overview</TabsTrigger>
           <TabsTrigger value="tickets" className="flex-1 text-xs">Tickets</TabsTrigger>
           <TabsTrigger value="assets" className="flex-1 text-xs">Assets</TabsTrigger>
@@ -367,41 +367,41 @@ export function SiteDrillPanel() {
 
         <TabsContent value="tickets" className="space-y-4">
           <div className="grid grid-cols-4 gap-2">
-            <StatCard 
-              label="Total" 
-              value={data.tickets.summary.total} 
+            <StatCard
+              label="Total"
+              value={data.tickets.summary.total}
               onClick={() => setTicketFilter('all')}
               active={ticketFilter === 'all'}
             />
-            <StatCard 
-              label="Pending" 
-              value={data.tickets.summary.pending} 
-              color="text-warning" 
+            <StatCard
+              label="Pending"
+              value={data.tickets.summary.pending}
+              color="text-warning"
               onClick={() => setTicketFilter(ticketFilter === 'pending' ? 'all' : 'pending')}
               active={ticketFilter === 'pending'}
             />
-            <StatCard 
-              label="Breached" 
-              value={data.tickets.summary.breached} 
-              color="text-critical" 
+            <StatCard
+              label="Breached"
+              value={data.tickets.summary.breached}
+              color="text-critical"
               onClick={() => setTicketFilter(ticketFilter === 'breached' ? 'all' : 'breached')}
               active={ticketFilter === 'breached'}
             />
-            <StatCard 
-              label="SLA %" 
-              value={`${data.tickets.summary.sla_percentage}%`} 
+            <StatCard
+              label="SLA %"
+              value={`${data.tickets.summary.sla_percentage}%`}
               onClick={() => setTicketFilter(ticketFilter === 'within_sla' ? 'all' : 'within_sla')}
               active={ticketFilter === 'within_sla'}
             />
           </div>
-          
+
           {ticketFilter !== 'all' && (
-            <FilterHeader 
-              label={ticketFilter === 'pending' ? 'Pending Tickets' : ticketFilter === 'breached' ? 'Breached Tickets' : 'Within SLA'} 
-              onClear={() => setTicketFilter('all')} 
+            <FilterHeader
+              label={ticketFilter === 'pending' ? 'Pending Tickets' : ticketFilter === 'breached' ? 'Breached Tickets' : 'Within SLA'}
+              onClear={() => setTicketFilter('all')}
             />
           )}
-          
+
           <SectionTitle>
             {ticketFilter === 'all' ? 'Recent Tickets' : `${ticketFilter === 'pending' ? 'Pending' : ticketFilter === 'breached' ? 'Breached' : 'Within SLA'} Tickets`}
           </SectionTitle>
@@ -415,21 +415,21 @@ export function SiteDrillPanel() {
                 return true;
               })
               .map((t) => (
-              <div key={t.id} className="flex items-start justify-between p-2 border rounded-md hover:bg-muted/30 cursor-pointer transition-colors">
-                <div>
-                  <div className="text-xs font-mono text-muted-foreground">{t.ticket_number}</div>
-                  <div className="text-sm font-medium truncate">{t.heading}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{t.category ?? '—'} · {new Date(t.created_at).toLocaleDateString()}</div>
+                <div key={t.id} className="flex items-start justify-between p-2 border rounded-md hover:bg-muted/30 cursor-pointer transition-colors">
+                  <div>
+                    <div className="text-xs font-mono text-muted-foreground">{t.ticket_number}</div>
+                    <div className="text-sm font-medium truncate">{t.heading}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{t.category ?? '—'} · {new Date(t.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <Badge variant="outline" className={cn('text-2xs shrink-0',
+                    t.sla_status === 'Breached' && 'border-critical text-critical',
+                    t.sla_status === 'At Risk' && 'border-warning text-warning',
+                    t.sla_status === 'Within SLA' && 'border-healthy text-healthy',
+                  )}>
+                    {t.sla_status}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className={cn('text-2xs shrink-0',
-                  t.sla_status === 'Breached' && 'border-critical text-critical',
-                  t.sla_status === 'At Risk' && 'border-warning text-warning',
-                  t.sla_status === 'Within SLA' && 'border-healthy text-healthy',
-                )}>
-                  {t.sla_status}
-                </Badge>
-              </div>
-            ))}
+              ))}
             {data.tickets.recent.filter((t) => {
               if (ticketFilter === 'all') return true;
               if (ticketFilter === 'pending') return t.status === 'Pending' || t.sla_status === 'At Risk';
@@ -442,52 +442,52 @@ export function SiteDrillPanel() {
 
         <TabsContent value="assets" className="space-y-4">
           <div className="grid grid-cols-2 gap-2">
-            <StatCard 
-              label="Total" 
-              value={data.assets.summary.total} 
+            <StatCard
+              label="Total"
+              value={data.assets.summary.total}
               onClick={() => handleAssetFilterChange('all')}
               active={assetFilter === 'all'}
             />
-            <StatCard 
-              label="Health %" 
-              value={`${data.assets.summary.health_percentage}%`} 
+            <StatCard
+              label="Health %"
+              value={`${data.assets.summary.health_percentage}%`}
             />
-            <StatCard 
-              label="Operational" 
-              value={data.assets.summary.operational} 
-              color="text-healthy" 
+            <StatCard
+              label="Operational"
+              value={data.assets.summary.operational}
+              color="text-healthy"
               onClick={() => handleAssetFilterChange(assetFilter === 'operational' ? 'all' : 'operational')}
               active={assetFilter === 'operational'}
             />
-            <StatCard 
-              label="Maintenance" 
-              value={data.assets.summary.maintenance} 
-              color="text-warning" 
+            <StatCard
+              label="Maintenance"
+              value={data.assets.summary.maintenance}
+              color="text-warning"
               onClick={() => handleAssetFilterChange(assetFilter === 'maintenance' ? 'all' : 'maintenance')}
               active={assetFilter === 'maintenance'}
             />
-            <StatCard 
-              label="Critical" 
-              value={data.assets.summary.critical} 
-              color="text-critical" 
+            <StatCard
+              label="Critical"
+              value={data.assets.summary.critical}
+              color="text-critical"
               onClick={() => handleAssetFilterChange(assetFilter === 'critical' ? 'all' : 'critical')}
               active={assetFilter === 'critical'}
             />
-            <StatCard 
-              label="Offline" 
-              value={data.assets.summary.offline} 
+            <StatCard
+              label="Offline"
+              value={data.assets.summary.offline}
               onClick={() => handleAssetFilterChange(assetFilter === 'offline' ? 'all' : 'offline')}
               active={assetFilter === 'offline'}
             />
           </div>
-          
+
           {assetFilter !== 'all' && (
-            <FilterHeader 
-              label={`${assetFilter.charAt(0).toUpperCase() + assetFilter.slice(1)} Assets`} 
-              onClear={() => handleAssetFilterChange('all')} 
+            <FilterHeader
+              label={`${assetFilter.charAt(0).toUpperCase() + assetFilter.slice(1)} Assets`}
+              onClear={() => handleAssetFilterChange('all')}
             />
           )}
-          
+
           {assetFilter !== 'all' ? (
             <div className="space-y-4">
               {/* Summary stats */}
@@ -497,10 +497,10 @@ export function SiteDrillPanel() {
                   <div className="text-xs text-muted-foreground">Total {assetFilter}</div>
                 </div>
                 <div className="text-center">
-                  <div className={cn('text-xl font-bold', 
-                    assetFilter === 'operational' ? 'text-healthy' : 
-                    assetFilter === 'maintenance' ? 'text-warning' : 
-                    assetFilter === 'critical' ? 'text-critical' : 'text-muted-foreground'
+                  <div className={cn('text-xl font-bold',
+                    assetFilter === 'operational' ? 'text-healthy' :
+                      assetFilter === 'maintenance' ? 'text-warning' :
+                        assetFilter === 'critical' ? 'text-critical' : 'text-muted-foreground'
                   )}>
                     {assetFilter.charAt(0).toUpperCase() + assetFilter.slice(1)}
                   </div>
@@ -512,7 +512,7 @@ export function SiteDrillPanel() {
               <SectionTitle>
                 Asset Details ({assetDrillData?.records?.length ?? 0} records)
               </SectionTitle>
-              
+
               {isAssetDrillPending ? (
                 <div className="space-y-2">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -522,8 +522,8 @@ export function SiteDrillPanel() {
               ) : paginatedAssetRecords.length > 0 ? (
                 <div className="space-y-2">
                   {paginatedAssetRecords.map((record) => (
-                    <div 
-                      key={record.id} 
+                    <div
+                      key={record.id}
                       className={cn(
                         "flex items-center justify-between p-3 border rounded-md hover:bg-muted/30 transition-colors",
                         record.critical && "border-critical/30 bg-critical/5"
@@ -532,14 +532,14 @@ export function SiteDrillPanel() {
                       <div className="flex items-center gap-3">
                         <div className={cn(
                           'w-8 h-8 rounded-full flex items-center justify-center',
-                          assetFilter === 'operational' ? 'bg-healthy/20' : 
-                          assetFilter === 'maintenance' ? 'bg-warning/20' : 
-                          assetFilter === 'critical' ? 'bg-critical/20' : 'bg-muted'
+                          assetFilter === 'operational' ? 'bg-healthy/20' :
+                            assetFilter === 'maintenance' ? 'bg-warning/20' :
+                              assetFilter === 'critical' ? 'bg-critical/20' : 'bg-muted'
                         )}>
-                          <Wrench className={cn('h-4 w-4', 
-                            assetFilter === 'operational' ? 'text-healthy' : 
-                            assetFilter === 'maintenance' ? 'text-warning' : 
-                            assetFilter === 'critical' ? 'text-critical' : 'text-muted-foreground'
+                          <Wrench className={cn('h-4 w-4',
+                            assetFilter === 'operational' ? 'text-healthy' :
+                              assetFilter === 'maintenance' ? 'text-warning' :
+                                assetFilter === 'critical' ? 'text-critical' : 'text-muted-foreground'
                           )} />
                         </div>
                         <div>
@@ -554,14 +554,14 @@ export function SiteDrillPanel() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className={cn(
                             'text-2xs',
-                            assetFilter === 'operational' ? 'border-healthy text-healthy' : 
-                            assetFilter === 'maintenance' ? 'border-warning text-warning' : 
-                            assetFilter === 'critical' ? 'border-critical text-critical' : 
-                            'border-muted-foreground text-muted-foreground'
+                            assetFilter === 'operational' ? 'border-healthy text-healthy' :
+                              assetFilter === 'maintenance' ? 'border-warning text-warning' :
+                                assetFilter === 'critical' ? 'border-critical text-critical' :
+                                  'border-muted-foreground text-muted-foreground'
                           )}
                         >
                           {record.status}
@@ -685,30 +685,30 @@ export function SiteDrillPanel() {
 
         <TabsContent value="ppm" className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
-            <StatCard 
-              label="Total" 
-              value={data.ppm.total} 
+            <StatCard
+              label="Total"
+              value={data.ppm.total}
               onClick={() => handlePPMFilterChange(null)}
               active={ppmFilter === null}
             />
-            <StatCard 
-              label="Completed" 
-              value={data.ppm.completed} 
-              color="text-healthy" 
+            <StatCard
+              label="Completed"
+              value={data.ppm.completed}
+              color="text-healthy"
             />
-            <StatCard 
-              label="Completion %" 
-              value={`${data.ppm.percentage}%`} 
+            <StatCard
+              label="Completion %"
+              value={`${data.ppm.percentage}%`}
             />
           </div>
-          
+
           {ppmFilter && (
-            <FilterHeader 
-              label={`${ppmFilter} PPM Tasks`} 
-              onClear={() => handlePPMFilterChange(null)} 
+            <FilterHeader
+              label={`${ppmFilter} PPM Tasks`}
+              onClear={() => handlePPMFilterChange(null)}
             />
           )}
-          
+
           {ppmCategoryData.length > 0 && (
             <>
               <SectionTitle>PPM by Category {!ppmFilter && '(Click to drill down)'}</SectionTitle>
@@ -728,7 +728,7 @@ export function SiteDrillPanel() {
                       return (
                         <div className="space-y-3">
                           <div className="grid grid-cols-4 gap-2">
-                            <div 
+                            <div
                               className={cn(
                                 "text-center p-2 rounded-md transition-all cursor-pointer hover:bg-muted/50",
                                 ppmStatusFilter === 'all' && "ring-2 ring-primary bg-primary/10"
@@ -738,7 +738,7 @@ export function SiteDrillPanel() {
                               <div className="text-xl font-bold">{total}</div>
                               <div className="text-xs text-muted-foreground">Total</div>
                             </div>
-                            <div 
+                            <div
                               className={cn(
                                 "text-center p-2 rounded-md transition-all cursor-pointer hover:bg-muted/50",
                                 ppmStatusFilter === 'completed' && "ring-2 ring-healthy bg-healthy/10"
@@ -748,7 +748,7 @@ export function SiteDrillPanel() {
                               <div className="text-xl font-bold text-healthy">{completed}</div>
                               <div className="text-xs text-muted-foreground">Completed</div>
                             </div>
-                            <div 
+                            <div
                               className={cn(
                                 "text-center p-2 rounded-md transition-all cursor-pointer hover:bg-muted/50",
                                 ppmStatusFilter === 'pending' && "ring-2 ring-warning bg-warning/10"
@@ -791,7 +791,7 @@ export function SiteDrillPanel() {
                   <SectionTitle>
                     Task Details ({filteredPPMRecords.length} records)
                   </SectionTitle>
-                  
+
                   {isPPMDrillPending ? (
                     <div className="space-y-2">
                       {Array.from({ length: 5 }).map((_, i) => (
@@ -801,8 +801,8 @@ export function SiteDrillPanel() {
                   ) : paginatedPPMRecords.length > 0 ? (
                     <div className="space-y-2">
                       {paginatedPPMRecords.map((record) => (
-                        <div 
-                          key={record.id} 
+                        <div
+                          key={record.id}
                           className={cn(
                             "p-3 border rounded-md hover:bg-muted/30 transition-colors",
                             (record.status === 'complete' || record.status === 'completed') && "border-healthy/30 bg-healthy/5",
@@ -814,14 +814,14 @@ export function SiteDrillPanel() {
                             <div className="flex items-center gap-3">
                               <div className={cn(
                                 'w-8 h-8 rounded-full flex items-center justify-center',
-                                (record.status === 'complete' || record.status === 'completed') ? 'bg-healthy/20' : 
-                                record.status === 'pending' ? 'bg-warning/20' : 
-                                record.status === 'overdue' ? 'bg-critical/20' : 'bg-muted'
+                                (record.status === 'complete' || record.status === 'completed') ? 'bg-healthy/20' :
+                                  record.status === 'pending' ? 'bg-warning/20' :
+                                    record.status === 'overdue' ? 'bg-critical/20' : 'bg-muted'
                               )}>
-                                <ClipboardList className={cn('h-4 w-4', 
-                                  (record.status === 'complete' || record.status === 'completed') ? 'text-healthy' : 
-                                  record.status === 'pending' ? 'text-warning' : 
-                                  record.status === 'overdue' ? 'text-critical' : 'text-muted-foreground'
+                                <ClipboardList className={cn('h-4 w-4',
+                                  (record.status === 'complete' || record.status === 'completed') ? 'text-healthy' :
+                                    record.status === 'pending' ? 'text-warning' :
+                                      record.status === 'overdue' ? 'text-critical' : 'text-muted-foreground'
                                 )} />
                               </div>
                               <div>
@@ -834,14 +834,14 @@ export function SiteDrillPanel() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <Badge 
-                                variant="outline" 
+                              <Badge
+                                variant="outline"
                                 className={cn(
                                   'text-2xs',
-                                  (record.status === 'complete' || record.status === 'completed') ? 'border-healthy text-healthy' : 
-                                  record.status === 'pending' ? 'border-warning text-warning' : 
-                                  record.status === 'overdue' ? 'border-critical text-critical' : 
-                                  'border-muted-foreground text-muted-foreground'
+                                  (record.status === 'complete' || record.status === 'completed') ? 'border-healthy text-healthy' :
+                                    record.status === 'pending' ? 'border-warning text-warning' :
+                                      record.status === 'overdue' ? 'border-critical text-critical' :
+                                        'border-muted-foreground text-muted-foreground'
                                 )}
                               >
                                 {record.status === 'complete' ? 'completed' : record.status}
@@ -945,8 +945,8 @@ export function SiteDrillPanel() {
               ) : (
                 <div className="space-y-1.5">
                   {ppmCategoryData.map((c, i) => (
-                    <div 
-                      key={i} 
+                    <div
+                      key={i}
                       className="flex items-center justify-between p-2 bg-muted/30 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => handlePPMFilterChange(c.category)}
                     >
@@ -968,30 +968,30 @@ export function SiteDrillPanel() {
 
         <TabsContent value="workforce" className="space-y-4">
           <div className="grid grid-cols-3 gap-2">
-            <StatCard 
-              label="Total" 
-              value={data.workforce.total} 
+            <StatCard
+              label="Total"
+              value={data.workforce.total}
               onClick={() => setWorkforceFilter(null)}
               active={workforceFilter === null}
             />
-            <StatCard 
-              label="Present Today" 
-              value={data.workforce.present} 
-              color="text-healthy" 
+            <StatCard
+              label="Present Today"
+              value={data.workforce.present}
+              color="text-healthy"
             />
-            <StatCard 
-              label="Availability %" 
-              value={`${data.workforce.percentage}%`} 
+            <StatCard
+              label="Availability %"
+              value={`${data.workforce.percentage}%`}
             />
           </div>
-          
+
           {workforceFilter && (
-            <FilterHeader 
-              label={`${workforceFilter.type === 'vendor' ? 'Vendor' : 'Work Type'}: ${workforceFilter.value}`} 
-              onClear={() => handleWorkforceFilterChange(null)} 
+            <FilterHeader
+              label={`${workforceFilter.type === 'vendor' ? 'Vendor' : 'Work Type'}: ${workforceFilter.value}`}
+              onClear={() => handleWorkforceFilterChange(null)}
             />
           )}
-          
+
           {workforceFilter ? (
             <div className="space-y-4">
               {/* Summary stats */}
@@ -1014,7 +1014,7 @@ export function SiteDrillPanel() {
               <SectionTitle>
                 Staff Details ({workforceDrillData?.records?.length ?? 0} records)
               </SectionTitle>
-              
+
               {isWorkforceDrillPending ? (
                 <div className="space-y-2">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -1024,8 +1024,8 @@ export function SiteDrillPanel() {
               ) : paginatedWorkforceRecords.length > 0 ? (
                 <div className="space-y-2">
                   {paginatedWorkforceRecords.map((record) => (
-                    <div 
-                      key={record.id} 
+                    <div
+                      key={record.id}
                       className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/30 transition-colors"
                     >
                       <div className="flex items-center gap-3">
@@ -1044,12 +1044,12 @@ export function SiteDrillPanel() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className={cn(
                             'text-2xs',
-                            record.present_today 
-                              ? 'border-healthy text-healthy' 
+                            record.present_today
+                              ? 'border-healthy text-healthy'
                               : 'border-muted-foreground text-muted-foreground'
                           )}
                         >
@@ -1128,8 +1128,8 @@ export function SiteDrillPanel() {
                   <SectionTitle>By Vendor (Click to drill down)</SectionTitle>
                   <div className="space-y-1.5">
                     {workforceVendorData.map((v, i) => (
-                      <div 
-                        key={i} 
+                      <div
+                        key={i}
                         className="flex items-center justify-between p-2 bg-muted/30 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
                         onClick={() => handleWorkforceFilterChange({ type: 'vendor', value: v.vendor })}
                       >
@@ -1148,8 +1148,8 @@ export function SiteDrillPanel() {
                   <SectionTitle>By Work Type (Click to drill down)</SectionTitle>
                   <div className="space-y-1.5">
                     {workforceTypeData.map((w, i) => (
-                      <div 
-                        key={i} 
+                      <div
+                        key={i}
                         className="flex items-center justify-between p-2 bg-muted/30 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
                         onClick={() => handleWorkforceFilterChange({ type: 'work_type', value: w.work_type })}
                       >
