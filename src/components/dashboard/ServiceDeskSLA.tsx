@@ -1,17 +1,220 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { SectionHeader } from './SectionHeader';
 import { StatusBadge } from './StatusBadge';
 import { useServiceDesk } from '@/hooks/useGroupedDashboard';
-import { Ticket as TicketIcon, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Ticket as TicketIcon, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  Legend,
+} from 'recharts';
+import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useDashboardFilterOptions } from '@/hooks/useDashboardFilterOptions';
+import type { SiteOption } from '@/hooks/useDashboardFilterOptions';
+
+type ChartType =
+  | 'bar-horizontal'
+  | 'bar-vertical'
+  | 'line'
+  | 'area'
+  | 'pie'
+  | 'donut'
+  | 'radar';
+
+const CHART_TYPE_OPTIONS: { value: ChartType; label: string }[] = [
+  { value: 'bar-horizontal', label: 'Horizontal Bar' },
+  { value: 'bar-vertical', label: 'Vertical Bar' },
+  { value: 'line', label: 'Line' },
+  { value: 'area', label: 'Area' },
+  { value: 'pie', label: 'Pie' },
+  { value: 'donut', label: 'Donut' },
+  { value: 'radar', label: 'Radar' },
+];
+
+const CATEGORY_CHART_TYPE_STORAGE_KEY = 'serviceDesk.categoryChartType';
+
+function SiteFilterSelect({
+  siteId,
+  groupId,
+  sites,
+  onChange,
+}: {
+  siteId: string | null;
+  groupId: string | null;
+  sites: SiteOption[];
+  onChange: (siteId: string | null) => void;
+}) {
+  return (
+    <Select
+      value={siteId || 'all'}
+      onValueChange={(value) =>
+        onChange(value === 'all' ? null : value)
+      }
+    >
+      <SelectTrigger className="w-32 sm:w-44 h-8 text-xs shrink-0">
+        <SelectValue placeholder="All Sites" />
+      </SelectTrigger>
+
+      <SelectContent className="max-h-64">
+        <SelectItem value="all" className="text-xs">
+          All Sites
+        </SelectItem>
+
+        {sites
+          .filter(
+            (site) =>
+              site.name !== 'HO' &&
+              (!groupId || site.group_id === groupId)
+          )
+          .map((site) => (
+            <SelectItem
+              key={site.id}
+              value={site.id}
+              className="text-xs"
+            >
+              {site.name}
+            </SelectItem>
+          ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function isChartType(value: unknown): value is ChartType {
+  return typeof value === 'string' && CHART_TYPE_OPTIONS.some((o) => o.value === value);
+}
+
+/** Reads the persisted chart type from localStorage (falls back to default on SSR / first load) */
+function getInitialCategoryChartType(): ChartType {
+  if (typeof window === 'undefined') return 'bar-horizontal';
+  try {
+    const stored = window.localStorage.getItem(CATEGORY_CHART_TYPE_STORAGE_KEY);
+    return isChartType(stored) ? stored : 'bar-horizontal';
+  } catch {
+    return 'bar-horizontal';
+  }
+}
+
+/** Small self-contained dropdown matching the app's chart-type selector style */
+function ChartTypeDropdown({
+  value,
+  onChange,
+}: {
+  value: ChartType;
+  onChange: (value: ChartType) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedLabel = CHART_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? 'Chart Type';
+
+  return (
+    <div className="relative" ref={ref}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 px-2.5 text-2xs gap-1"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {selectedLabel}
+        {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 mt-1 w-40 rounded-md border bg-popover shadow-lg z-20 overflow-hidden">
+          {CHART_TYPE_OPTIONS.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                className={cn(
+                  'w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors',
+                  isSelected
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted text-foreground'
+                )}
+              >
+                {opt.label}
+                {isSelected && <Check className="h-3.5 w-3.5" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const CATEGORY_COLORS = [
+  '#8f53a1',
+  '#f47920',
+  '#2563eb',
+  '#16a34a',
+  '#dc2626',
+  '#ca8a04',
+  '#0891b2',
+  '#9333ea',
+  '#ea580c',
+  '#4f46e5',
+];
 
 export function ServiceDeskSLA() {
-  const { openSlideOver, currentRole, filters } = useDashboard();
+  const { openSlideOver, currentRole, filters, updateFilter, } = useDashboard();
   const { data, isPending: isLoading } = useServiceDesk(filters);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const { sites } = useDashboardFilterOptions(filters);
+
+  // Chart type is initialized from localStorage so it survives a page refresh
+  const [categoryChartType, setCategoryChartType] = useState<ChartType>(getInitialCategoryChartType);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CATEGORY_CHART_TYPE_STORAGE_KEY, categoryChartType);
+    } catch {
+      // localStorage unavailable (e.g. private browsing) - ignore, selection just won't persist
+    }
+  }, [categoryChartType]);
 
   const summary = data?.summary;
   const slaStatus = data?.sla_status;
@@ -21,19 +224,178 @@ export function ServiceDeskSLA() {
       { status: 'total', label: 'Total', count: summary.total },
       { status: 'open', label: 'Open', count: summary.open },
       { status: 'in_progress', label: 'In Progress', count: summary.in_progress },
-      { status: 'pending', label: 'Pending', count: summary.pending },
-      { status: 'resolved', label: 'Resolved', count: summary.resolved },
+      // { status: 'pending', label: 'Pending', count: summary.pending },
+      // { status: 'resolved', label: 'Resolved', count: summary.resolved },
       { status: 'closed', label: 'Closed', count: summary.closed },
     ]
     : [];
 
   const categoryChartData = (data?.tickets_by_category ?? [])
-    .map(c => ({ name: c.category, value: c.count }))
-    .sort((a, b) => b.value - a.value);
+    .map((c, index) => ({
+      name: c.category,
+      value: c.count,
+      fill: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
 
   const priorityTickets = (data?.priority_tickets ?? []).filter(t =>
     !statusFilter || t.status === statusFilter
   );
+
+  const handleCategoryClick = (name?: string) => {
+    if (name) openSlideOver('drill_ticket', { type: 'category', value: name } as never);
+  };
+
+  const renderCategoryChart = () => {
+    if (categoryChartData.length === 0) {
+      return (
+        <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+          No category data available
+        </div>
+      );
+    }
+
+    switch (categoryChartType) {
+      case 'bar-horizontal':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={categoryChartData} layout="vertical" margin={{ top: 0, right: 15, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" fontSize={10} allowDecimals={false} />
+              <YAxis type="category" dataKey="name" fontSize={10} width={90} />
+              <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
+              <Bar
+                dataKey="value"
+                name="Tickets"
+                radius={[0, 4, 4, 0]}
+                barSize={20}
+                cursor="pointer"
+                onClick={(d) => handleCategoryClick(d?.name)}
+              >
+                {categoryChartData.map((entry, index) => (
+                  <Cell key={`category-cell-${entry.name}-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        );
+
+      case 'bar-vertical':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={categoryChartData} margin={{ top: 10, right: 15, left: 0, bottom: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" fontSize={10} angle={-30} textAnchor="end" interval={0} height={45} />
+              <YAxis fontSize={10} allowDecimals={false} />
+              <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
+              <Bar
+                dataKey="value"
+                name="Tickets"
+                radius={[4, 4, 0, 0]}
+                barSize={24}
+                cursor="pointer"
+                onClick={(d) => handleCategoryClick(d?.name)}
+              >
+                {categoryChartData.map((entry, index) => (
+                  <Cell key={`category-cellv-${entry.name}-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        );
+
+      case 'line':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={categoryChartData} margin={{ top: 10, right: 15, left: 0, bottom: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" fontSize={10} angle={-30} textAnchor="end" interval={0} height={45} />
+              <YAxis fontSize={10} allowDecimals={false} />
+              <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
+              <Line type="monotone" dataKey="value" name="Tickets" stroke="#8f53a1" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        );
+
+      case 'area':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={categoryChartData} margin={{ top: 10, right: 15, left: 0, bottom: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" fontSize={10} angle={-30} textAnchor="end" interval={0} height={45} />
+              <YAxis fontSize={10} allowDecimals={false} />
+              <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
+              <Area type="monotone" dataKey="value" name="Tickets" stroke="#8f53a1" fill="#8f53a1" fillOpacity={0.3} />
+            </AreaChart>
+          </ResponsiveContainer>
+        );
+
+      case 'pie':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={categoryChartData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={75}
+                label={({ name }) => name}
+                onClick={(d) => handleCategoryClick(d?.name)}
+                style={{ cursor: 'pointer' }}
+              >
+                {categoryChartData.map((entry, index) => (
+                  <Cell key={`category-pie-${index}`} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+
+      case 'donut':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={categoryChartData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={75}
+                onClick={(d) => handleCategoryClick(d?.name)}
+                style={{ cursor: 'pointer' }}
+              >
+                {categoryChartData.map((entry, index) => (
+                  <Cell key={`category-donut-${index}`} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+
+      case 'radar':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={categoryChartData}>
+              <PolarGrid />
+              <PolarAngleAxis dataKey="name" tick={{ fontSize: 9 }} />
+              <PolarRadiusAxis tick={{ fontSize: 9 }} allowDecimals={false} />
+              <Radar name="Tickets" dataKey="value" stroke="#8f53a1" fill="#8f53a1" fillOpacity={0.4} />
+              <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
+            </RadarChart>
+          </ResponsiveContainer>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <section className="py-4 sm:py-6 border-t">
@@ -42,6 +404,16 @@ export function ServiceDeskSLA() {
           title="Service Desk & SLA Intelligence"
           subtitle={isLoading ? 'Loading...' : `${summary?.total ?? 0} tickets`}
           icon={<TicketIcon className="h-4 w-4" />}
+          actions={
+            <SiteFilterSelect
+              siteId={filters.site_id}
+              groupId={filters.group_id}
+              sites={sites}
+              onChange={(siteId) =>
+                updateFilter('site_id', siteId)
+              }
+            />
+          }
         />
 
         {isLoading ? (
@@ -55,18 +427,34 @@ export function ServiceDeskSLA() {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Status Summary Tabs - scrollable on mobile */}
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {/* Tickets by Status - Responsive Grid */}
+            <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
               {ticketsByStatus.map(({ status, label, count }) => (
                 <Button
                   key={status}
                   variant={statusFilter === status ? 'default' : 'outline'}
                   size="sm"
-                  className="flex-shrink-0 h-auto py-2 px-3 flex flex-col items-center gap-0.5 min-w-[72px]"
-                  onClick={() => setStatusFilter(statusFilter === status ? null : status)}
+                  className={cn(
+                    "w-full h-auto min-h-[64px] sm:min-h-[72px]",
+                    "px-2 sm:px-3 py-2 sm:py-3",
+                    "flex flex-col items-center justify-center",
+                    "gap-0.5 sm:gap-1",
+                    "rounded-lg",
+                    "transition-all text-white",
+                    statusFilter === status && "ring-2 ring-primary/30"
+                  )}
+                  style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}
+                  onClick={() =>
+                    setStatusFilter(statusFilter === status ? null : status)
+                  }
                 >
-                  <span className="text-base sm:text-lg font-bold">{count}</span>
-                  <span className="text-2xs capitalize">{label}</span>
+                  <span className="text-lg sm:text-xl font-bold leading-none">
+                    {count}
+                  </span>
+
+                  <span className="text-xs sm:text-sm capitalize text-center">
+                    {label}
+                  </span>
                 </Button>
               ))}
             </div>
@@ -104,17 +492,15 @@ export function ServiceDeskSLA() {
 
               {/* Tickets by Category Chart */}
               <div className="sm:col-span-1 lg:col-span-4 border rounded-lg p-4">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tickets by Category</h4>
-                <div className="h-[160px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={categoryChartData.slice(0, 6)} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" fontSize={10} />
-                      <YAxis type="category" dataKey="name" fontSize={10} width={80} />
-                      <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
-                      <Bar dataKey="value" fill="hsl(213, 56%, 24%)" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Tickets by Category
+                  </h4>
+                  <ChartTypeDropdown value={categoryChartType} onChange={setCategoryChartType} />
+                </div>
+
+                <div className="h-[200px]">
+                  {renderCategoryChart()}
                 </div>
               </div>
 

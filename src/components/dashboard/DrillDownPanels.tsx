@@ -47,7 +47,7 @@ function PanelHeader({
       </div>
       <div className="flex items-center gap-1.5">
         {onExport && (
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={onExport}>
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-1 text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }} onClick={onExport}>
             <Download className="h-3 w-3" /> Export
           </Button>
         )}
@@ -88,12 +88,12 @@ export function AssetDrillPanel() {
 
   const statusCounts = drillData?.records
     ? (() => {
-        const m: Record<string, number> = {};
-        drillData.records.forEach((r) => {
-          m[r.status] = (m[r.status] || 0) + 1;
-        });
-        return Object.entries(m).map(([name, count]) => ({ name, count, fill: COLORS[name as keyof typeof COLORS] || '#6b7280' }));
-      })()
+      const m: Record<string, number> = {};
+      drillData.records.forEach((r) => {
+        m[r.status] = (m[r.status] || 0) + 1;
+      });
+      return Object.entries(m).map(([name, count]) => ({ name, count, fill: COLORS[name as keyof typeof COLORS] || '#6b7280' }));
+    })()
     : [];
 
   if (!data) return <p className="text-sm text-muted-foreground">No drill context</p>;
@@ -232,6 +232,7 @@ export function PPMDrillPanel() {
         onRefresh={() => refetch()}
         isRefreshing={isFetching}
         onExport={handleExport}
+        style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}
       />
 
       <div className="grid grid-cols-3 gap-2 mb-4">
@@ -311,9 +312,9 @@ export function WorkforceDrillPanel() {
 
   const presentAbsentData = drillData
     ? [
-        { name: 'Present', value: drillData.present, fill: COLORS.present },
-        { name: 'Absent', value: drillData.absent, fill: COLORS.absent },
-      ].filter((d) => d.value > 0)
+      { name: 'Present', value: drillData.present, fill: COLORS.present },
+      { name: 'Absent', value: drillData.absent, fill: COLORS.absent },
+    ].filter((d) => d.value > 0)
     : [];
 
   if (!data) return <p className="text-sm text-muted-foreground">No drill context</p>;

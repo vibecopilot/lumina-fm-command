@@ -128,7 +128,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function LoadingState() {
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-2">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>
+      <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16" />)}</div>
       <Skeleton className="h-48" />
       <Skeleton className="h-32" />
     </div>
@@ -198,7 +198,7 @@ export function TicketSLAPanel() {
         <DrillDownTicket ticket={drillRow} onBack={() => setDrillRow(null)} />
       ) : (
         <Tabs defaultValue="overview">
-          <TabsList className="w-full mb-4">
+          <TabsList className="w-full mb-4 text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}>
             <TabsTrigger value="overview" className="flex-1 text-xs">Overview</TabsTrigger>
             <TabsTrigger value="sla" className="flex-1 text-xs">TAT Breakdown</TabsTrigger>
             <TabsTrigger value="category" className="flex-1 text-xs">By Category</TabsTrigger>
@@ -272,10 +272,10 @@ export function TicketSLAPanel() {
 
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full text-xs">
-                <thead className="bg-muted/50">
+                <thead className="text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}>
                   <tr>
                     <th className="text-left p-2 font-medium">Category</th>
-                    <th className="text-right p-2 font-medium">Count</th>
+                    <th className="text-center p-2 font-medium">Count</th>
                     <th className="text-right p-2 font-medium">%</th>
                   </tr>
                 </thead>
@@ -283,7 +283,7 @@ export function TicketSLAPanel() {
                   {categoryData.map((row, i) => (
                     <tr key={i} className="border-t hover:bg-muted/20">
                       <td className="p-2">{row.category}</td>
-                      <td className="p-2 text-right font-medium">{row.count}</td>
+                      <td className="p-2 text-center font-medium">{row.count}</td>
                       <td className="p-2 text-right text-muted-foreground">
                         {data!.summary.total > 0 ? ((row.count / data!.summary.total) * 100).toFixed(1) : 0}%
                       </td>
@@ -423,7 +423,7 @@ export function PPMCompliancePanel() {
         <DrillDownCategory category={drillCategory} onBack={() => setDrillCategory(null)} type="PPM" />
       ) : (
         <Tabs defaultValue="overview">
-          <TabsList className="w-full mb-4">
+          <TabsList className="w-full mb-4 text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}>
             <TabsTrigger value="overview" className="flex-1 text-xs">Overview</TabsTrigger>
             <TabsTrigger value="category" className="flex-1 text-xs">By Category</TabsTrigger>
             <TabsTrigger value="soft" className="flex-1 text-xs">Soft Services</TabsTrigger>
@@ -471,7 +471,7 @@ export function PPMCompliancePanel() {
 
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full text-xs">
-                <thead className="bg-muted/50">
+                <thead className="text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}>
                   <tr>
                     <th className="text-left p-2 font-medium">Category</th>
                     <th className="text-right p-2 font-medium">Total</th>
@@ -602,7 +602,7 @@ export function AssetHealthPanel() {
         <DrillDownAsset asset={drillAsset} onBack={() => setDrillAsset(null)} />
       ) : (
         <Tabs defaultValue="overview">
-          <TabsList className="w-full mb-4">
+          <TabsList className="w-full mb-4 text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}>
             <TabsTrigger value="overview" className="flex-1 text-xs">Overview</TabsTrigger>
             <TabsTrigger value="categories" className="flex-1 text-xs">Categories</TabsTrigger>
             <TabsTrigger value="critical" className="flex-1 text-xs">Critical</TabsTrigger>
@@ -648,7 +648,7 @@ export function AssetHealthPanel() {
 
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full text-xs">
-                <thead className="bg-muted/50">
+                <thead className="text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}>
                   <tr>
                     <th className="text-left p-2 font-medium">Category</th>
                     <th className="text-right p-2 font-medium">Total</th>
@@ -788,149 +788,149 @@ export function WorkforcePanel() {
       />
 
       <Tabs defaultValue="overview">
-          <TabsList className="w-full mb-4">
-            <TabsTrigger value="overview" className="flex-1 text-xs">Overview</TabsTrigger>
-            <TabsTrigger value="vendor" className="flex-1 text-xs">By Vendor</TabsTrigger>
-            <TabsTrigger value="worktype" className="flex-1 text-xs">Work Type</TabsTrigger>
-          </TabsList>
+        <TabsList className="w-full mb-4">
+          <TabsTrigger value="overview" className="flex-1 text-xs">Overview</TabsTrigger>
+          <TabsTrigger value="vendor" className="flex-1 text-xs">By Vendor</TabsTrigger>
+          <TabsTrigger value="worktype" className="flex-1 text-xs">Work Type</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
-              <StatCard label="Total Staff" value={summary.total ?? 0} />
-              <StatCard label="Availability %" value={`${summary.availability_percentage ?? 0}%`} color={(summary.availability_percentage ?? 0) >= 85 ? 'text-healthy' : 'text-critical'} />
-              <StatCard label="Present Today" value={summary.present ?? 0} color="text-healthy" />
-              <StatCard label="Absent" value={summary.absent ?? 0} color="text-critical" />
-            </div>
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            <StatCard label="Total Staff" value={summary.total ?? 0} />
+            <StatCard label="Availability %" value={`${summary.availability_percentage ?? 0}%`} color={(summary.availability_percentage ?? 0) >= 85 ? 'text-healthy' : 'text-critical'} />
+            <StatCard label="Present Today" value={summary.present ?? 0} color="text-healthy" />
+            <StatCard label="Absent" value={summary.absent ?? 0} color="text-critical" />
+          </div>
 
-            <SectionTitle>Present vs Absent</SectionTitle>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Present', value: summary.present ?? 0, color: COLORS.healthy },
-                    { name: 'Absent', value: summary.absent ?? 0, color: COLORS.critical },
-                  ].filter(d => (d.value ?? 0) > 0)}
-                  cx="50%" cy="50%" outerRadius={65} dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  <Cell fill={COLORS.healthy} />
-                  <Cell fill={COLORS.critical} />
-                </Pie>
+          <SectionTitle>Present vs Absent</SectionTitle>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie
+                data={[
+                  { name: 'Present', value: summary.present ?? 0, color: COLORS.healthy },
+                  { name: 'Absent', value: summary.absent ?? 0, color: COLORS.critical },
+                ].filter(d => (d.value ?? 0) > 0)}
+                cx="50%" cy="50%" outerRadius={65} dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                labelLine={false}
+              >
+                <Cell fill={COLORS.healthy} />
+                <Cell fill={COLORS.critical} />
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </TabsContent>
+
+        <TabsContent value="vendor" className="space-y-4">
+          <SectionTitle>Attendance by Vendor</SectionTitle>
+          {byVendor.length > 0 ? (
+            <ResponsiveContainer width="100%" height={Math.max(byVendor.length * 40, 150)}>
+              <BarChart data={byVendor} layout="vertical" margin={{ left: 8, right: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 10 }} />
+                <YAxis dataKey="vendor" type="category" width={80} tick={{ fontSize: 9 }} />
                 <Tooltip />
+                <Bar dataKey="present" name="Present" fill={COLORS.healthy} stackId="a" />
+                <Bar dataKey="absent" name="Absent" fill={COLORS.critical} stackId="a" radius={[0, 3, 3, 0]} />
                 <Legend />
-              </PieChart>
+              </BarChart>
             </ResponsiveContainer>
-          </TabsContent>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">No vendor data</p>
+          )}
 
-          <TabsContent value="vendor" className="space-y-4">
-            <SectionTitle>Attendance by Vendor</SectionTitle>
-            {byVendor.length > 0 ? (
-              <ResponsiveContainer width="100%" height={Math.max(byVendor.length * 40, 150)}>
-                <BarChart data={byVendor} layout="vertical" margin={{ left: 8, right: 24 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis dataKey="vendor" type="category" width={80} tick={{ fontSize: 9 }} />
+          <div className="border rounded-lg overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="text-left p-2 font-medium">Vendor</th>
+                  <th className="text-right p-2 font-medium">Total</th>
+                  <th className="text-right p-2 font-medium">Present</th>
+                  <th className="text-right p-2 font-medium">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byVendor.map((row, i) => {
+                  const total = row.total ?? 0;
+                  const present = row.present ?? 0;
+                  return (
+                    <tr
+                      key={i}
+                      className="border-t hover:bg-muted/20 cursor-pointer"
+                      onClick={() => openSlideOver('drill_workforce', { type: 'vendor', value: row.vendor ?? '' })}
+                    >
+                      <td className="p-2">{row.vendor ?? '—'}</td>
+                      <td className="p-2 text-right">{total}</td>
+                      <td className="p-2 text-right text-healthy">{present}</td>
+                      <td className="p-2 text-right">
+                        <span className={cn('font-medium', total > 0 && (present / total) >= 0.85 ? 'text-healthy' : 'text-critical')}>
+                          {total > 0 ? ((present / total) * 100).toFixed(0) : 0}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="worktype" className="space-y-4">
+          <SectionTitle>Staff by Work Type (click to see staff details)</SectionTitle>
+          {workTypeData.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={workTypeData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={75}
+                    dataKey="count"
+                    nameKey="work_type"
+                    label={({ work_type, percent }) => `${work_type} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                    onClick={(d: { work_type?: string }) => d?.work_type && openSlideOver('drill_workforce', { type: 'work_type', value: d.work_type })}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {workTypeData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                  </Pie>
                   <Tooltip />
-                  <Bar dataKey="present" name="Present" fill={COLORS.healthy} stackId="a" />
-                  <Bar dataKey="absent" name="Absent" fill={COLORS.critical} stackId="a" radius={[0, 3, 3, 0]} />
                   <Legend />
-                </BarChart>
+                </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">No vendor data</p>
-            )}
-
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-xs">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left p-2 font-medium">Vendor</th>
-                    <th className="text-right p-2 font-medium">Total</th>
-                    <th className="text-right p-2 font-medium">Present</th>
-                    <th className="text-right p-2 font-medium">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {byVendor.map((row, i) => {
-                    const total = row.total ?? 0;
-                    const present = row.present ?? 0;
-                    return (
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left p-2 font-medium">Work Type</th>
+                      <th className="text-right p-2 font-medium">Count</th>
+                      <th className="text-right p-2 font-medium w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {workTypeData.map((row, i) => (
                       <tr
                         key={i}
                         className="border-t hover:bg-muted/20 cursor-pointer"
-                        onClick={() => openSlideOver('drill_workforce', { type: 'vendor', value: row.vendor ?? '' })}
+                        onClick={() => openSlideOver('drill_workforce', { type: 'work_type', value: row.work_type ?? 'Unspecified' })}
                       >
-                        <td className="p-2">{row.vendor ?? '—'}</td>
-                        <td className="p-2 text-right">{total}</td>
-                        <td className="p-2 text-right text-healthy">{present}</td>
-                        <td className="p-2 text-right">
-                          <span className={cn('font-medium', total > 0 && (present / total) >= 0.85 ? 'text-healthy' : 'text-critical')}>
-                            {total > 0 ? ((present / total) * 100).toFixed(0) : 0}%
-                          </span>
-                        </td>
+                        <td className="p-2">{row.work_type ?? 'Unspecified'}</td>
+                        <td className="p-2 text-right">{row.count ?? 0}</td>
+                        <td className="p-2 text-right"><ChevronRight className="h-3 w-3 text-muted-foreground inline" /></td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="worktype" className="space-y-4">
-            <SectionTitle>Staff by Work Type (click to see staff details)</SectionTitle>
-            {workTypeData.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={workTypeData}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={75}
-                      dataKey="count"
-                      nameKey="work_type"
-                      label={({ work_type, percent }) => `${work_type} ${(percent * 100).toFixed(0)}%`}
-                      labelLine={false}
-                      onClick={(d: { work_type?: string }) => d?.work_type && openSlideOver('drill_workforce', { type: 'work_type', value: d.work_type })}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {workTypeData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="text-left p-2 font-medium">Work Type</th>
-                        <th className="text-right p-2 font-medium">Count</th>
-                        <th className="text-right p-2 font-medium w-8"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {workTypeData.map((row, i) => (
-                        <tr
-                          key={i}
-                          className="border-t hover:bg-muted/20 cursor-pointer"
-                          onClick={() => openSlideOver('drill_workforce', { type: 'work_type', value: row.work_type ?? 'Unspecified' })}
-                        >
-                          <td className="p-2">{row.work_type ?? 'Unspecified'}</td>
-                          <td className="p-2 text-right">{row.count ?? 0}</td>
-                          <td className="p-2 text-right"><ChevronRight className="h-3 w-3 text-muted-foreground inline" /></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">No work type data</p>
-            )}
-          </TabsContent>
-        </Tabs>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">No work type data</p>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -1222,7 +1222,7 @@ export function VisitorsTodayPanel() {
       </Button>
 
       <Tabs defaultValue="today">
-        <TabsList className="w-full mb-4">
+        <TabsList className="w-full mb-4 text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}>
           <TabsTrigger value="today" className="flex-1 text-xs">Today</TabsTrigger>
           <TabsTrigger value="period" className="flex-1 text-xs">Period</TabsTrigger>
           <TabsTrigger value="category" className="flex-1 text-xs">By Category</TabsTrigger>
@@ -1285,12 +1285,17 @@ export function VisitorsTodayPanel() {
                     {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                   </Pie>
                   <Tooltip />
-                  <Legend />
+                  <Legend verticalAlign="bottom"
+                    align="center"
+                    wrapperStyle={{
+                      paddingTop: '20px',
+                      lineHeight: '24px',
+                    }} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full text-xs">
-                  <thead className="bg-muted/50">
+                  <thead className="text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}>
                     <tr>
                       <th className="text-left p-2 font-medium">Category</th>
                       <th className="text-right p-2 font-medium">Count</th>
@@ -1379,7 +1384,7 @@ export function AvgResolutionPanel() {
       />
 
       <Tabs defaultValue="overview">
-        <TabsList className="w-full mb-4">
+        <TabsList className="w-full mb-4 text-white" style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}>
           <TabsTrigger value="overview" className="flex-1 text-xs">Overview</TabsTrigger>
           <TabsTrigger value="tickets" className="flex-1 text-xs">Resolved Tickets</TabsTrigger>
         </TabsList>

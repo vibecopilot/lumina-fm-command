@@ -31,7 +31,7 @@ export function KPICard({
   breakdown,
 }: KPICardProps) {
   const { currentRole } = useDashboard();
-  
+
   const getStatusColor = () => {
     if (!status) {
       const numValue = typeof value === 'number' ? value : parseFloat(value as string);
@@ -72,58 +72,93 @@ export function KPICard({
   return (
     <div
       className={cn(
-        'kpi-card bg-card border rounded-lg p-4 cursor-pointer group',
-        'hover:border-primary/30',
+        'kpi-card border border-white/20 rounded-lg p-4 cursor-pointer group',
+        'hover:shadow-lg transition-all duration-300',
         className
       )}
+      style={{
+        background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)',
+      }}
       onClick={onClick}
     >
+      {/* Header */}
       <div className="flex items-start justify-between mb-2">
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        <h3 className="text-xs font-medium text-white uppercase tracking-wider">
           {title}
         </h3>
-        <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+
+        <ChevronRight
+          className="h-4 w-4 text-white/70 group-hover:text-white transition-colors"
+        />
       </div>
-      
+
+      {/* Value */}
       <div className="flex items-baseline gap-1 mb-1">
-        <span className={cn(
-          'text-2xl font-bold',
-          statusColor === 'healthy' && 'text-healthy',
-          statusColor === 'warning' && 'text-warning',
-          statusColor === 'critical' && 'text-critical',
-        )}>
+        <span
+          className="text-2xl font-bold text-white"
+        >
           {value}
         </span>
-        {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
+
+        {unit && (
+          <span className="text-sm text-white/90">
+            {unit}
+          </span>
+        )}
       </div>
 
+      {/* Subtitle */}
       {subtitle && (
-        <p className="text-xs text-muted-foreground mb-2">{subtitle}</p>
+        <p className="text-xs text-white/80 mb-2">
+          {subtitle}
+        </p>
       )}
 
+      {/* Trend */}
       {trend !== undefined && (
-        <div className={cn('flex items-center gap-1 text-xs', getTrendColor())}>
+        <div className="flex items-center gap-1 text-xs text-white">
           {getTrendIcon()}
-          <span>{Math.abs(trend)}%</span>
-          {trendLabel && <span className="text-muted-foreground ml-1">{trendLabel}</span>}
+
+          <span>
+            {Math.abs(trend)}%
+          </span>
+
+          {trendLabel && (
+            <span className="text-white/80 ml-1">
+              {trendLabel}
+            </span>
+          )}
         </div>
       )}
 
+      {/* Breakdown */}
       {breakdown && currentRole !== 'ops' && (
-        <div className="mt-3 pt-3 border-t space-y-1.5">
+        <div className="mt-3 pt-3 border-t border-white/30 space-y-1.5">
           {breakdown.map((item, idx) => (
-            <div key={idx} className="flex items-center justify-between text-xs">
+            <div
+              key={idx}
+              className="flex items-center justify-between text-xs"
+            >
               <div className="flex items-center gap-1.5">
-                <div className={cn(
-                  'w-1.5 h-1.5 rounded-full',
-                  item.status === 'healthy' && 'bg-healthy',
-                  item.status === 'warning' && 'bg-warning',
-                  item.status === 'critical' && 'bg-critical',
-                  (!item.status || item.status === 'neutral') && 'bg-muted-foreground'
-                )} />
-                <span className="text-muted-foreground">{item.label}</span>
+                <div
+                  className={cn(
+                    'w-1.5 h-1.5 rounded-full',
+                    item.status === 'healthy' && 'bg-white',
+                    item.status === 'warning' && 'bg-yellow-200',
+                    item.status === 'critical' && 'bg-red-200',
+                    (!item.status || item.status === 'neutral') &&
+                    'bg-white/70'
+                  )}
+                />
+
+                <span className="text-white/90">
+                  {item.label}
+                </span>
               </div>
-              <span className="font-medium">{item.value}</span>
+
+              <span className="font-medium text-white">
+                {item.value}
+              </span>
             </div>
           ))}
         </div>
