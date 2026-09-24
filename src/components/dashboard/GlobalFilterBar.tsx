@@ -64,14 +64,11 @@ export function GlobalFilterBar() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           {/* Left: Logo & Title */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div
-              className="flex items-center justify-center 
-                        w-16 h-10 rounded-lg bg-primary shrink-0"
-            >
+            <div className="flex items-center justify-center w-24 h-16 rounded-lg p-1 shrink-0">
               <img
-                src="/horizon_industrial_parks_logo.jpeg"
+                src="/horizonlogo.png"
                 alt="Horizon Industrial Parks Limited"
-              // className="w-16 h-10 object-contain"
+                className="w-24 h-16 object-contain"
               />
             </div>
             <div>
