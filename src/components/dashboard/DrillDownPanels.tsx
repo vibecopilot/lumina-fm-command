@@ -232,7 +232,6 @@ export function PPMDrillPanel() {
         onRefresh={() => refetch()}
         isRefreshing={isFetching}
         onExport={handleExport}
-        style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)', }}
       />
 
       <div className="grid grid-cols-3 gap-2 mb-4">

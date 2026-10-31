@@ -122,10 +122,10 @@ export async function fetchWorkforceDrill(params: WorkforceDrillParams = {}): Pr
 }
 
 export interface PPMDrillParams extends ApiParams {
-  category: string;
+  category?: string;
 }
 
-export async function fetchPPMDrill(params: PPMDrillParams = {}): Promise<PPMDrillResponse> {
+export async function fetchPPMDrill(params: PPMDrillParams = {} as PPMDrillParams): Promise<PPMDrillResponse> {
   const baseParams = buildParams(params);
   if (params.category) baseParams['category'] = params.category;
   const response = await axiosInstance.get('/api/v1/grouped_dashboard/ppm_drill.json', {

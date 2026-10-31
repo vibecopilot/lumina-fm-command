@@ -495,25 +495,64 @@ export function SlideOverPanel() {
 
   return (
     <>
-      {/* Overlay */}
+      {/* Blurred Backdrop Overlay */}
       <div
-        className="fixed inset-0 bg-panel-overlay/20 z-50 animate-fade-in"
+        className="fixed inset-0 z-50 animate-fade-in"
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        }}
         onClick={closeSlideOver}
       />
 
-      {/* Panel */}
-      <div className={`fixed right-0 top-0 h-full ${panelWidth} max-w-full bg-panel-bg border-l shadow-xl z-50 animate-slide-in-right overflow-hidden`}>
+      {/* Slide-over Drawer Panel */}
+      <div
+        className={`fixed right-0 top-0 h-full ${panelWidth} max-w-full z-50 animate-slide-in-right overflow-hidden`}
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderLeft: '1px solid var(--border-color)',
+          boxShadow: '-8px 0 32px rgba(0, 0, 0, 0.5)',
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 bg-panel-header border-b">
-          <h2 className="text-sm font-semibold">{getTitle()}</h2>
-          <Button variant="ghost" size="icon" onClick={closeSlideOver} className="h-8 w-8">
-            <X className="h-4 w-4" />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--border-color)',
+            backgroundColor: 'var(--glass-bg)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: '#00C853',
+                boxShadow: '0 0 8px #00C853',
+              }}
+            />
+            <h2 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              {getTitle()}
+            </h2>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={closeSlideOver}
+            className="h-8 w-8 rounded-full hover:bg-white/10"
+          >
+            <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
           </Button>
         </div>
 
         {/* Content */}
         <ScrollArea className="h-[calc(100%-57px)]">
-          <div className="p-4 min-w-0 overflow-x-hidden">
+          <div className="p-5 min-w-0 overflow-x-hidden">
             {renderContent()}
           </div>
         </ScrollArea>

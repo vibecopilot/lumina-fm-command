@@ -1,12 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { SectionHeader } from './SectionHeader';
-import { StatusBadge } from './StatusBadge';
 import { useWorkforce } from '@/hooks/useGroupedDashboard';
-import { Users, UserCheck, UserX, ChevronRight, ChevronDown, ChevronUp, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
+import {
+  Users,
+  UserCheck,
+  UserX,
+  ChevronDown,
+  Check,
+  Building2,
+  Briefcase,
+  TrendingUp,
+} from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -15,756 +19,912 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
-  PieChart,
-  Pie,
   Cell,
+  Legend,
   LineChart,
   Line,
   AreaChart,
   Area,
+  PieChart,
+  Pie,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
 } from 'recharts';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useDashboardFilterOptions } from '@/hooks/useDashboardFilterOptions';
-import type { SiteOption } from '@/hooks/useDashboardFilterOptions';
 
 type ChartType =
-  | 'bar-horizontal'
-  | 'bar-vertical'
-  | 'line'
-  | 'area'
-  | 'pie'
-  | 'donut'
-  | 'radar';
+  | 'Donut'
+  | 'Area'
+  | 'Line'
+  | 'Horizontal Bar'
+  | 'Vertical Bar'
+  | 'Radar';
 
-const CHART_TYPE_OPTIONS: { value: ChartType; label: string }[] = [
-  { value: 'bar-horizontal', label: 'Horizontal Bar' },
-  { value: 'bar-vertical', label: 'Vertical Bar' },
-  { value: 'line', label: 'Line' },
-  { value: 'area', label: 'Area' },
-  { value: 'pie', label: 'Pie' },
-  { value: 'donut', label: 'Donut' },
-  { value: 'radar', label: 'Radar' },
+const CHART_TYPES: ChartType[] = [
+  'Donut',
+  'Area',
+  'Line',
+  'Horizontal Bar',
+  'Vertical Bar',
+  'Radar',
 ];
 
-const TOOLTIP_STYLE = { fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' };
+const TOP_N_OPTIONS = ['Top 5', 'Top 10', 'All'] as const;
+type TopNOption = (typeof TOP_N_OPTIONS)[number];
 
-function isChartType(value: unknown): value is ChartType {
-  return typeof value === 'string' && CHART_TYPE_OPTIONS.some((o) => o.value === value);
-}
+const ROLE_COLORS = [
+  '#FF5B22',
+  '#F97316',
+  '#FB923C',
+  '#F59E0B',
+  '#EA580C',
+  '#C2410C',
+  '#FF7A45',
+  '#059669',
+  '#FF8A00',
+  '#475569',
+  '#D97706',
+  '#FFA000',
+];
 
-function SiteFilterSelect({
-  siteId,
-  groupId,
-  sites,
-  onChange,
-}: {
-  siteId: string | null;
-  groupId: string | null;
-  sites: SiteOption[];
-  onChange: (siteId: string | null) => void;
-}) {
-  return (
-    <Select
-      value={siteId || 'all'}
-      onValueChange={(value) =>
-        onChange(value === 'all' ? null : value)
-      }
-    >
-      <SelectTrigger className="w-32 sm:w-44 h-8 text-xs shrink-0">
-        <SelectValue placeholder="All Sites" />
-      </SelectTrigger>
+export function WorkforceTracking() {
+  const { openSlideOver, filters, updateFilter } = useDashboard();
+  const { data, isPending: isLoading } = useWorkforce(filters);
+  const { sites } = useDashboardFilterOptions(filters);
 
-      <SelectContent className="max-h-64">
-        <SelectItem value="all" className="text-xs">
-          All Sites
-        </SelectItem>
+  const [vendorChartType, setVendorChartType] = useState<ChartType>('Donut');
+  const [roleChartType, setRoleChartType] = useState<ChartType>('Area');
+  const [roleTopN, setRoleTopN] = useState<TopNOption>('Top 5');
 
-        {sites
-          .filter(
-            (site) =>
-              site.name !== 'HO' &&
-              (!groupId || site.group_id === groupId)
-          )
-          .map((site) => (
-            <SelectItem
-              key={site.id}
-              value={site.id}
-              className="text-xs"
-            >
-              {site.name}
-            </SelectItem>
-          ))}
-      </SelectContent>
-    </Select>
-  );
-}
+  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
+  const [roleChartDropdownOpen, setRoleChartDropdownOpen] = useState(false);
+  const [roleTopNDropdownOpen, setRoleTopNDropdownOpen] = useState(false);
+  const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
 
-function getInitialChartType(storageKey: string, fallback: ChartType): ChartType {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const stored = window.localStorage.getItem(storageKey);
-    return isChartType(stored) ? stored : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-/** Persists chart type selection to localStorage so it survives a page refresh */
-function usePersistedChartType(storageKey: string, fallback: ChartType) {
-  const [value, setValue] = useState<ChartType>(() => getInitialChartType(storageKey, fallback));
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(storageKey, value);
-    } catch {
-      // localStorage unavailable - selection just won't persist across refresh
-    }
-  }, [storageKey, value]);
-
-  return [value, setValue] as const;
-}
-
-/** Small self-contained dropdown matching the app's chart-type selector style */
-function ChartTypeDropdown({
-  value,
-  onChange,
-}: {
-  value: ChartType;
-  onChange: (value: ChartType) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const vendorDropdownRef = useRef<HTMLDivElement>(null);
+  const roleChartDropdownRef = useRef<HTMLDivElement>(null);
+  const roleTopNDropdownRef = useRef<HTMLDivElement>(null);
+  const siteDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
+      if (vendorDropdownRef.current && !vendorDropdownRef.current.contains(e.target as Node)) {
+        setVendorDropdownOpen(false);
+      }
+      if (roleChartDropdownRef.current && !roleChartDropdownRef.current.contains(e.target as Node)) {
+        setRoleChartDropdownOpen(false);
+      }
+      if (roleTopNDropdownRef.current && !roleTopNDropdownRef.current.contains(e.target as Node)) {
+        setRoleTopNDropdownOpen(false);
+      }
+      if (siteDropdownRef.current && !siteDropdownRef.current.contains(e.target as Node)) {
+        setSiteDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectedLabel = CHART_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? 'Chart Type';
-
-  return (
-    <div className="relative" ref={ref}>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-6 px-2 text-2xs gap-1"
-        onClick={() => setOpen((o) => !o)}
-      >
-        {selectedLabel}
-        {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-      </Button>
-
-      {open && (
-        <div className="absolute right-0 mt-1 w-36 rounded-md border bg-popover shadow-lg z-20 overflow-hidden">
-          {CHART_TYPE_OPTIONS.map((opt) => {
-            const isSelected = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-                className={cn(
-                  'w-full text-left px-3 py-1.5 text-2xs flex items-center justify-between transition-colors',
-                  isSelected
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted text-foreground'
-                )}
-              >
-                {opt.label}
-                {isSelected && <Check className="h-3 w-3" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function WorkforceTracking() {
-  const { currentRole, filters, openSlideOver, updateFilter } = useDashboard();
-  const { data, isPending: isLoading } = useWorkforce(filters);
-  const { sites } = useDashboardFilterOptions(filters);
-
-  const [vendorChartType, setVendorChartType] = usePersistedChartType(
-    'workforceTracking.vendorChartType',
-    'bar-vertical'
-  );
-  const [workTypeChartType, setWorkTypeChartType] = usePersistedChartType(
-    'workforceTracking.workTypeChartType',
-    'donut'
-  );
-
   const summary = data?.summary;
-  const byVendor = data?.by_vendor ?? [];
-  const byWorkType = data?.by_work_type ?? [];
+  const totalEmployees = summary?.total ?? 0;
+  const present = summary?.present ?? 0;
+  const absent = summary?.absent ?? 0;
+  const overallAvailability = Number(
+    summary?.availability_percentage ?? (totalEmployees > 0 ? (present / totalEmployees) * 100 : 0)
+  );
 
-  const availabilityRate = summary?.availability_percentage ?? 0;
+  const vendors = useMemo(() => {
+    return (data?.by_vendor ?? []).map((v) => ({
+      name: v.vendor,
+      present: Number(v.present || 0),
+      absent: Number(v.absent || 0),
+      total: Number(v.total || (v.present || 0) + (v.absent || 0)),
+    }));
+  }, [data?.by_vendor]);
 
-  const vendorChartData = byVendor.map(v => ({
-    name: v.vendor ?? '—',
-    present: v.present ?? 0,
-    absent: v.absent ?? 0,
-    total: v.total ?? 0,
-  }));
+  const rawWorkTypes = useMemo(() => {
+    return (data?.by_work_type ?? []).map((w, idx) => ({
+      type: w.work_type,
+      count: Number(w.count || 0),
+      color: ROLE_COLORS[idx % ROLE_COLORS.length],
+    })).sort((a, b) => b.count - a.count);
+  }, [data?.by_work_type]);
 
-  const workTypeChartData = byWorkType.map((wt, i) => ({
-    name: wt.work_type ?? 'Unspecified',
-    value: wt.count ?? 0,
-    color: ['hsl(213, 56%, 24%)', 'hsl(213, 40%, 45%)', 'hsl(142, 71%, 45%)', 'hsl(38, 92%, 50%)', 'hsl(215, 16%, 47%)'][i % 5],
-  }));
+  const displayedWorkTypes = useMemo(() => {
+    if (roleTopN === 'Top 5') return rawWorkTypes.slice(0, 5);
+    if (roleTopN === 'Top 10') return rawWorkTypes.slice(0, 10);
+    return rawWorkTypes;
+  }, [rawWorkTypes, roleTopN]);
 
-  const shortfallVendors = byVendor
-    .map(v => ({ ...v, availability: (v.total ?? 0) > 0 ? Math.round(((v.present ?? 0) / (v.total ?? 1)) * 100) : 0 }))
-    .filter(v => v.availability < 80)
-    .sort((a, b) => a.availability - b.availability)
-    .slice(0, 5);
+  const selectedSiteObj = sites.find((s) => s.id === filters.site_id);
+  const selectedSiteName = selectedSiteObj?.name || 'All Sites';
 
-  const handleVendorClick = (name?: string) => {
-    if (name) openSlideOver('drill_workforce', { type: 'vendor', value: name });
-  };
-
-  const handleWorkTypeClick = (name?: string) => {
-    if (name) openSlideOver('drill_workforce', { type: 'work_type', value: name });
-  };
-
-  const renderVendorChart = () => {
-    if (vendorChartData.length === 0) {
-      return (
-        <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-          No vendor data available
-        </div>
-      );
-    }
-
-    switch (vendorChartType) {
-      case 'bar-vertical':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={vendorChartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" fontSize={9} />
-              <YAxis fontSize={10} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Bar
-                dataKey="present"
-                name="Present"
-                fill="hsl(142, 71%, 45%)"
-                radius={[4, 4, 0, 0]}
-                onClick={(d) => handleVendorClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              />
-              <Bar
-                dataKey="absent"
-                name="Absent"
-                fill="hsl(0, 84%, 60%)"
-                radius={[4, 4, 0, 0]}
-                onClick={(d) => handleVendorClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        );
-
-      case 'bar-horizontal':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={vendorChartData} layout="vertical" margin={{ top: 10, right: 15, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" fontSize={10} />
-              <YAxis type="category" dataKey="name" fontSize={9} width={80} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Bar
-                dataKey="present"
-                name="Present"
-                fill="hsl(142, 71%, 45%)"
-                radius={[0, 4, 4, 0]}
-                onClick={(d) => handleVendorClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              />
-              <Bar
-                dataKey="absent"
-                name="Absent"
-                fill="hsl(0, 84%, 60%)"
-                radius={[0, 4, 4, 0]}
-                onClick={(d) => handleVendorClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        );
-
-      case 'line':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={vendorChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={9} />
-              <YAxis fontSize={10} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Line type="monotone" dataKey="present" name="Present" stroke="hsl(142, 71%, 45%)" strokeWidth={2} />
-              <Line type="monotone" dataKey="absent" name="Absent" stroke="hsl(0, 84%, 60%)" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        );
-
-      case 'area':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={vendorChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={9} />
-              <YAxis fontSize={10} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Area type="monotone" dataKey="present" name="Present" stroke="hsl(142, 71%, 45%)" fill="hsl(142, 71%, 45%)" fillOpacity={0.3} />
-              <Area type="monotone" dataKey="absent" name="Absent" stroke="hsl(0, 84%, 60%)" fill="hsl(0, 84%, 60%)" fillOpacity={0.25} />
-            </AreaChart>
-          </ResponsiveContainer>
-        );
-
-      case 'radar':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={vendorChartData}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="name" tick={{ fontSize: 9 }} />
-              <PolarRadiusAxis tick={{ fontSize: 9 }} />
-              <Radar name="Present" dataKey="present" stroke="hsl(142, 71%, 45%)" fill="hsl(142, 71%, 45%)" fillOpacity={0.35} />
-              <Radar name="Absent" dataKey="absent" stroke="hsl(0, 84%, 60%)" fill="hsl(0, 84%, 60%)" fillOpacity={0.25} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-            </RadarChart>
-          </ResponsiveContainer>
-        );
-
-      // Pie/Donut can't show two series (present + absent) as one ring meaningfully,
-      // so these modes show "Present" per vendor as slices.
-      case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={vendorChartData}
-                dataKey="present"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={70}
-                label={({ name }) => name}
-                onClick={(d) => handleVendorClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              >
-                {vendorChartData.map((_, i) => (
-                  <Cell key={i} fill={`hsl(${(i * 47) % 360}, 65%, 50%)`} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'Present']} />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-
-      case 'donut':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={vendorChartData}
-                dataKey="present"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={38}
-                outerRadius={70}
-                onClick={(d) => handleVendorClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              >
-                {vendorChartData.map((_, i) => (
-                  <Cell key={i} fill={`hsl(${(i * 47) % 360}, 65%, 50%)`} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'Present']} />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  const renderWorkTypeChart = () => {
-    if (workTypeChartData.length === 0) {
-      return (
-        <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-          No work type data available
-        </div>
-      );
-    }
-
-    const showCenterLabel = workTypeChartType === 'donut';
-
-    switch (workTypeChartType) {
-      case 'donut':
-        return (
-          <div className="relative h-full w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={workTypeChartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={35}
-                  outerRadius={55}
-                  paddingAngle={2}
-                  dataKey="value"
-                  onClick={(d) => handleWorkTypeClick(d?.name)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {workTypeChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
-              </PieChart>
-            </ResponsiveContainer>
-            {showCenterLabel && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-[10px] text-muted-foreground">Total :</span>
-                <span className="text-lg font-bold">{summary?.total ?? 0}</span>
-              </div>
-            )}
-          </div>
-        );
-
-      case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={workTypeChartData}
-                cx="50%"
-                cy="50%"
-                outerRadius={60}
-                dataKey="value"
-                label={({ name }) => name}
-                onClick={(d) => handleWorkTypeClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              >
-                {workTypeChartData.map((entry, index) => (
-                  <Cell key={`pie-cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-
-      case 'bar-vertical':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={workTypeChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" fontSize={9} />
-              <YAxis fontSize={10} allowDecimals={false} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Bar
-                dataKey="value"
-                name="Count"
-                radius={[4, 4, 0, 0]}
-                maxBarSize={36}
-                onClick={(d) => handleWorkTypeClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              >
-                {workTypeChartData.map((entry, index) => (
-                  <Cell key={`bar-cell-${index}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        );
-
-      case 'bar-horizontal':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={workTypeChartData} layout="vertical" margin={{ top: 10, right: 15, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" fontSize={10} allowDecimals={false} />
-              <YAxis type="category" dataKey="name" fontSize={9} width={80} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Bar
-                dataKey="value"
-                name="Count"
-                radius={[0, 4, 4, 0]}
-                maxBarSize={24}
-                onClick={(d) => handleWorkTypeClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              >
-                {workTypeChartData.map((entry, index) => (
-                  <Cell key={`barh-cell-${index}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        );
-
-      case 'line':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={workTypeChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={9} />
-              <YAxis fontSize={10} allowDecimals={false} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Line type="monotone" dataKey="value" name="Count" stroke="hsl(213, 56%, 24%)" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        );
-
-      case 'area':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={workTypeChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={9} />
-              <YAxis fontSize={10} allowDecimals={false} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Area type="monotone" dataKey="value" name="Count" stroke="hsl(213, 56%, 24%)" fill="hsl(213, 56%, 24%)" fillOpacity={0.3} />
-            </AreaChart>
-          </ResponsiveContainer>
-        );
-
-      case 'radar':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={workTypeChartData}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="name" tick={{ fontSize: 9 }} />
-              <PolarRadiusAxis tick={{ fontSize: 9 }} allowDecimals={false} />
-              <Radar name="Count" dataKey="value" stroke="hsl(213, 56%, 24%)" fill="hsl(213, 56%, 24%)" fillOpacity={0.4} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-            </RadarChart>
-          </ResponsiveContainer>
-        );
-
-      default:
-        return null;
-    }
-  };
+  const isLowAvailability = overallAvailability < 50;
 
   return (
-    <section className="py-4 sm:py-6 border-t">
-      <div className="container">
-        <SectionHeader
-          title="Workforce Tracking"
-          subtitle={
-            isLoading
-              ? 'Loading...'
-              : `${summary?.total ?? 0} employees across all sites`
-          }
-          icon={<Users className="h-4 w-4" />}
-          actions={
-            <SiteFilterSelect
-              siteId={filters.site_id}
-              groupId={filters.group_id}
-              sites={sites}
-              onChange={(siteId) =>
-                updateFilter('site_id', siteId)
-              }
-            />
-          }
-        />
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-64 rounded-lg" />)}
+    <section id="workforce-section" style={{ marginBottom: '40px' }} className="animate-fade-in stagger-6">
+      {/* Section Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '16px',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#3B82F6',
+            }}
+          >
+            <Users size={20} strokeWidth={2.2} />
           </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Top row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
-              {/* Attendance Summary */}
-              <div className="sm:col-span-1 lg:col-span-3 space-y-3">
-                <div className="border rounded-lg p-4">
-                  <div className="text-xs text-muted-foreground mb-1">Overall Availability</div>
-                  <div className={cn('text-3xl font-bold', availabilityRate >= 90 ? 'text-healthy' : availabilityRate >= 80 ? 'text-warning' : 'text-critical')}>
-                    {availabilityRate}%
-                  </div>
-                  <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={cn('h-full rounded-full', availabilityRate >= 90 ? 'bg-healthy' : availabilityRate >= 80 ? 'bg-warning' : 'bg-critical')}
-                      style={{ width: `${availabilityRate}%` }}
-                    />
-                  </div>
-                </div>
+          <div>
+            <h3
+              style={{
+                fontSize: '1.25rem',
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+                margin: 0,
+              }}
+            >
+              Workforce Tracking
+            </h3>
+            <p
+              style={{
+                fontSize: '0.8125rem',
+                color: 'var(--text-muted)',
+                margin: '2px 0 0 0',
+              }}
+            >
+              {totalEmployees.toLocaleString()} employees deployed across {selectedSiteName}
+            </p>
+          </div>
+        </div>
 
-                <div className="grid grid-cols-2 gap-2">
+        {/* Site Pill Dropdown */}
+        <div ref={siteDropdownRef} style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setSiteDropdownOpen(!siteDropdownOpen)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              backgroundColor: 'var(--glass-bg)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              color: 'var(--text-primary)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>{selectedSiteName}</span>
+            <ChevronDown
+              size={14}
+              style={{
+                color: 'var(--text-muted)',
+                transform: siteDropdownOpen ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.15s ease',
+              }}
+            />
+          </button>
+          {siteDropdownOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                right: 0,
+                width: '200px',
+                maxHeight: '260px',
+                overflowY: 'auto',
+                backgroundColor: 'var(--dropdown-bg)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                boxShadow: 'var(--shadow-elevation)',
+                zIndex: 60,
+                padding: '4px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  updateFilter('site_id', null);
+                  setSiteDropdownOpen(false);
+                }}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '7px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: !filters.site_id ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                  color: !filters.site_id ? '#3B82F6' : 'var(--text-primary)',
+                  fontSize: '0.8125rem',
+                  fontWeight: !filters.site_id ? 700 : 500,
+                  cursor: 'pointer',
+                }}
+              >
+                All Sites
+              </button>
+              {sites.map((site) => (
+                <button
+                  key={site.id}
+                  type="button"
+                  onClick={() => {
+                    updateFilter('site_id', site.id);
+                    setSiteDropdownOpen(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: filters.site_id === site.id ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                    color: filters.site_id === site.id ? '#3B82F6' : 'var(--text-primary)',
+                    fontSize: '0.8125rem',
+                    fontWeight: filters.site_id === site.id ? 700 : 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {site.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 3-Column Layout */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '16px',
+          alignItems: 'stretch',
+        }}
+      >
+        {/* Column 1: Availability Meters & Counts */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
+          {/* Overall Availability Card */}
+          <div
+            onClick={() => openSlideOver('kpi_workforce')}
+            className="glass-card glass-card-lift"
+            style={{
+              padding: '20px 22px',
+              borderRadius: '12px',
+              flex: '1.2 1 0',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+            title="Click to inspect workforce availability"
+          >
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '8px' }}>
+              Overall Availability
+            </div>
+            <div
+              style={{
+                fontSize: '2.5rem',
+                fontWeight: 800,
+                color: isLowAvailability ? '#EF4444' : '#00E676',
+                lineHeight: 1,
+                marginBottom: '14px',
+              }}
+            >
+              {overallAvailability.toFixed(1)}%
+            </div>
+            <div
+              style={{
+                height: '7px',
+                width: '100%',
+                backgroundColor: 'var(--border-color)',
+                borderRadius: '4px',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  height: '100%',
+                  width: `${Math.min(Math.max(overallAvailability, 0), 100)}%`,
+                  backgroundColor: isLowAvailability ? '#EF4444' : '#00E676',
+                  borderRadius: '4px',
+                  transition: 'width 0.8s ease',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Present vs Absent Mini Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', flex: '1 1 0' }}>
+            {/* Present */}
+            <div
+              onClick={() => openSlideOver('drill_workforce', { attendance: 'present' } as never)}
+              className="glass-card glass-card-lift"
+              style={{
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                borderRadius: '10px',
+                padding: '16px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+              title="Click to inspect present personnel"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#16A34A', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px' }}>
+                <UserCheck size={16} />
+                <span>Present</span>
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
+                {present.toLocaleString()}
+              </div>
+            </div>
+
+            {/* Absent */}
+            <div
+              onClick={() => openSlideOver('drill_workforce', { attendance: 'absent' } as never)}
+              className="glass-card glass-card-lift"
+              style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                borderRadius: '10px',
+                padding: '16px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+              title="Click to inspect absent personnel"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#EF4444', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px' }}>
+                <UserX size={16} />
+                <span>Absent</span>
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
+                {absent.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          {/* Total Workforce Box */}
+          <div
+            onClick={() => openSlideOver('drill_workforce', {} as never)}
+            className="glass-card glass-card-lift"
+            style={{
+              borderRadius: '10px',
+              padding: '16px 20px',
+              flex: '1 1 0',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+            title="Click to inspect all staff records"
+          >
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '6px' }}>
+              Total Workforce
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
+              {totalEmployees.toLocaleString()}
+            </div>
+          </div>
+        </div>
+
+        {/* Column 2: Attendance by Vendor */}
+        <div
+          className="glass-card glass-card-lift"
+          style={{
+            padding: '20px 22px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            height: '100%',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '14px',
+                flexWrap: 'wrap',
+                gap: '8px',
+              }}
+            >
+              <div>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  Attendance by Vendor
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                  Headcount distribution by facility contractor.
+                </p>
+              </div>
+
+              {/* Vendor Chart Switcher */}
+              <div ref={vendorDropdownRef} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setVendorDropdownOpen(!vendorDropdownOpen)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    backgroundColor: 'var(--glass-bg)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>{vendorChartType}</span>
+                  <ChevronDown size={12} />
+                </button>
+                {vendorDropdownOpen && (
                   <div
-                    className="border rounded-lg p-3 bg-healthy-bg cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => openSlideOver('drill_workforce', { type: 'attendance', value: 'present' })}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && openSlideOver('drill_workforce', { type: 'attendance', value: 'present' })}
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 4px)',
+                      right: 0,
+                      width: '120px',
+                      backgroundColor: 'var(--dropdown-bg)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      boxShadow: 'var(--shadow-elevation)',
+                      zIndex: 60,
+                      padding: '4px',
+                    }}
                   >
-                    <div className="flex items-center gap-1 mb-1">
-                      <UserCheck className="h-3.5 w-3.5 text-healthy" />
-                      <span className="text-xs">Present</span>
-                    </div>
-                    <div className="text-xl font-bold">{summary?.present ?? 0}</div>
-                  </div>
-                  <div
-                    className="border rounded-lg p-3 bg-critical-bg cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => openSlideOver('drill_workforce', { type: 'attendance', value: 'absent' })}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && openSlideOver('drill_workforce', { type: 'attendance', value: 'absent' })}
-                  >
-                    <div className="flex items-center gap-1 mb-1">
-                      <UserX className="h-3.5 w-3.5 text-critical" />
-                      <span className="text-xs">Absent</span>
-                    </div>
-                    <div className="text-xl font-bold">{summary?.absent ?? 0}</div>
-                  </div>
-                  <div className="border rounded-lg p-3 bg-muted col-span-2">
-                    <div className="text-xs text-muted-foreground mb-1">Total Workforce</div>
-                    <div className="text-xl font-bold">{summary?.total ?? 0}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* By Vendor Chart */}
-              <div className="sm:col-span-1 lg:col-span-3 border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">By Vendor</h4>
-                  <ChartTypeDropdown value={vendorChartType} onChange={setVendorChartType} />
-                </div>
-                <div className="h-[180px]">
-                  {renderVendorChart()}
-                </div>
-              </div>
-
-              {/* By Work Type */}
-              <div className="sm:col-span-1 lg:col-span-3 border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">By Work Type</h4>
-                  <ChartTypeDropdown value={workTypeChartType} onChange={setWorkTypeChartType} />
-                </div>
-                <div className="h-[140px]">
-                  {renderWorkTypeChart()}
-                </div>
-                <div className="space-y-1 mt-2">
-                  {workTypeChartData.map(item => (
-                    <div
-                      key={item.name}
-                      className="flex items-center justify-between text-xs cursor-pointer hover:bg-muted/30 rounded px-1 -mx-1 py-0.5 transition-colors group"
-                      onClick={() => openSlideOver('drill_workforce', { type: 'work_type', value: item.name })}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && openSlideOver('drill_workforce', { type: 'work_type', value: item.name })}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                        <span className="text-muted-foreground truncate group-hover:text-foreground">{item.name}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">{item.value}</span>
-                        <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Vendor Shortfall Alerts */}
-              <div className="sm:col-span-1 lg:col-span-3 border rounded-lg p-4">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Low Availability Vendors</h4>
-                <div className="space-y-2">
-                  {shortfallVendors.length === 0 ? (
-                    <div className="text-center py-6 text-sm text-muted-foreground">All vendors at good capacity</div>
-                  ) : (
-                    shortfallVendors.map(vendor => (
-                      <div
-                        key={vendor.vendor}
-                        className={cn(
-                          'flex items-center justify-between p-2 rounded-md cursor-pointer hover:opacity-90 transition-opacity group',
-                          vendor.availability < 70 ? 'bg-critical-bg' : 'bg-warning-bg'
-                        )}
-                        onClick={() => openSlideOver('drill_workforce', { type: 'vendor', value: vendor.vendor })}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && openSlideOver('drill_workforce', { type: 'vendor', value: vendor.vendor })}
+                    {CHART_TYPES.map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          setVendorChartType(type);
+                          setVendorDropdownOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '6px 8px',
+                          borderRadius: '4px',
+                          border: 'none',
+                          backgroundColor: vendorChartType === type ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                          color: vendorChartType === type ? '#3B82F6' : 'var(--text-primary)',
+                          fontSize: '0.75rem',
+                          fontWeight: vendorChartType === type ? 700 : 500,
+                          cursor: 'pointer',
+                        }}
                       >
-                        <div>
-                          <div className="text-sm font-medium">{vendor.vendor}</div>
-                          <div className="text-xs text-muted-foreground">{(vendor.present ?? 0)}/{(vendor.total ?? 0)} present</div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <StatusBadge status={vendor.availability < 70 ? 'critical' : 'warning'} label={`${vendor.availability}%`} />
-                          <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100" />
-                        </div>
-                      </div>
-                    ))
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Vendor Chart */}
+            <div style={{ height: '220px', width: '100%' }}>
+              {vendors.length === 0 ? (
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+                  No vendor attendance data
+                </div>
+              ) : vendorChartType === 'Donut' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Pie
+                      data={vendors}
+                      dataKey="total"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      cursor="pointer"
+                      onClick={(d) => openSlideOver('drill_workforce', { vendor: d?.name } as never)}
+                    >
+                      {vendors.map((_, idx) => (
+                        <Cell key={`vendor-cell-${idx}`} fill={ROLE_COLORS[idx % ROLE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : vendorChartType === 'Horizontal Bar' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={vendors} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" />
+                    <XAxis type="number" fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" fontSize={10} stroke="var(--text-muted)" width={85} tickFormatter={(val) => (val?.length > 12 ? `${val.substring(0, 11)}…` : val)} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Bar dataKey="present" name="Present" fill="#10B981" radius={[0, 3, 3, 0]} barSize={12} />
+                    <Bar dataKey="absent" name="Absent" fill="#EF4444" radius={[0, 3, 3, 0]} barSize={12} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : vendorChartType === 'Vertical Bar' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={vendors} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+                    <XAxis dataKey="name" fontSize={9} stroke="var(--text-muted)" angle={-25} textAnchor="end" interval={0} tickFormatter={(val) => (val?.length > 10 ? `${val.substring(0, 9)}…` : val)} />
+                    <YAxis fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Bar dataKey="present" name="Present" fill="#10B981" radius={[3, 3, 0, 0]} barSize={14} />
+                    <Bar dataKey="absent" name="Absent" fill="#EF4444" radius={[3, 3, 0, 0]} barSize={14} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : vendorChartType === 'Line' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={vendors} margin={{ top: 10, right: 15, left: -15, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                    <XAxis dataKey="name" fontSize={9} stroke="var(--text-muted)" angle={-25} textAnchor="end" interval={0} />
+                    <YAxis fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Line type="monotone" dataKey="present" name="Present" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="absent" name="Absent" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : vendorChartType === 'Area' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={vendors} margin={{ top: 10, right: 15, left: -15, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                    <XAxis dataKey="name" fontSize={9} stroke="var(--text-muted)" angle={-25} textAnchor="end" interval={0} />
+                    <YAxis fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Area type="monotone" dataKey="present" name="Present" stroke="#10B981" fill="#10B981" fillOpacity={0.2} />
+                    <Area type="monotone" dataKey="absent" name="Absent" stroke="#EF4444" fill="#EF4444" fillOpacity={0.2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={vendors} cx="50%" cy="50%" outerRadius={70}>
+                    <PolarGrid stroke="var(--border-color)" />
+                    <PolarAngleAxis dataKey="name" fontSize={9} stroke="var(--text-muted)" />
+                    <PolarRadiusAxis fontSize={9} stroke="var(--text-muted)" />
+                    <Radar name="Present" dataKey="present" stroke="#10B981" fill="#10B981" fillOpacity={0.2} />
+                    <Radar name="Absent" dataKey="absent" stroke="#EF4444" fill="#EF4444" fillOpacity={0.2} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '0.6875rem',
+              color: 'var(--text-muted)',
+              paddingTop: '10px',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <span>Showing {vendors.length} Vendors</span>
+            <span style={{ color: '#3B82F6', fontWeight: 700 }}>Click to inspect vendor</span>
+          </div>
+        </div>
+
+        {/* Column 3: Workforce by Work Type / Role */}
+        <div
+          className="glass-card glass-card-lift"
+          style={{
+            padding: '20px 22px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            height: '100%',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '14px',
+                flexWrap: 'wrap',
+                gap: '8px',
+              }}
+            >
+              <div>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  Workforce by Work Type
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                  Distribution of personnel by functional operational role.
+                </p>
+              </div>
+
+              {/* Chart Switcher & Top N */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {/* Role Chart Switcher */}
+                <div ref={roleChartDropdownRef} style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRoleChartDropdownOpen(!roleChartDropdownOpen)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      backgroundColor: 'var(--glass-bg)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>{roleChartType}</span>
+                    <ChevronDown size={12} />
+                  </button>
+                  {roleChartDropdownOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        right: 0,
+                        width: '120px',
+                        backgroundColor: 'var(--dropdown-bg)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        boxShadow: 'var(--shadow-elevation)',
+                        zIndex: 60,
+                        padding: '4px',
+                      }}
+                    >
+                      {CHART_TYPES.map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => {
+                            setRoleChartType(type);
+                            setRoleChartDropdownOpen(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '6px 8px',
+                            borderRadius: '4px',
+                            border: 'none',
+                            backgroundColor: roleChartType === type ? 'rgba(255, 91, 34, 0.15)' : 'transparent',
+                            color: roleChartType === type ? '#FF7A45' : 'var(--text-primary)',
+                            fontSize: '0.75rem',
+                            fontWeight: roleChartType === type ? 700 : 500,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Top N Dropdown */}
+                <div ref={roleTopNDropdownRef} style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRoleTopNDropdownOpen(!roleTopNDropdownOpen)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      backgroundColor: 'var(--glass-bg)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>{roleTopN}</span>
+                    <ChevronDown size={12} />
+                  </button>
+                  {roleTopNDropdownOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        right: 0,
+                        width: '100px',
+                        backgroundColor: 'var(--dropdown-bg)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        boxShadow: 'var(--shadow-elevation)',
+                        zIndex: 60,
+                        padding: '4px',
+                      }}
+                    >
+                      {TOP_N_OPTIONS.map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setRoleTopN(opt);
+                            setRoleTopNDropdownOpen(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '6px 8px',
+                            borderRadius: '4px',
+                            border: 'none',
+                            backgroundColor: roleTopN === opt ? 'rgba(255, 91, 34, 0.15)' : 'transparent',
+                            color: roleTopN === opt ? '#FF7A45' : 'var(--text-primary)',
+                            fontSize: '0.75rem',
+                            fontWeight: roleTopN === opt ? 700 : 500,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Full Vendor Breakdown (FM Head & Ops) */}
-            {currentRole !== 'ceo' && byVendor.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {byVendor.slice(0, 6).map(vendor => {
-                  const total = vendor.total ?? 0;
-                  const present = vendor.present ?? 0;
-                  const availability = total > 0 ? Math.round((present / total) * 100) : 0;
-                  return (
-                    <div
-                      key={vendor.vendor}
-                      className="border rounded-lg p-4 cursor-pointer hover:bg-muted/30 transition-colors group"
-                      onClick={() => openSlideOver('drill_workforce', { type: 'vendor', value: vendor.vendor })}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && openSlideOver('drill_workforce', { type: 'vendor', value: vendor.vendor })}
+            {/* Role Chart */}
+            <div style={{ height: '220px', width: '100%' }}>
+              {displayedWorkTypes.length === 0 ? (
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+                  No work type data available
+                </div>
+              ) : roleChartType === 'Area' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={displayedWorkTypes} margin={{ top: 10, right: 15, left: -15, bottom: 25 }}>
+                    <defs>
+                      <linearGradient id="workforceRoleGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#FF7A45" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#FF7A45" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                    <XAxis dataKey="type" fontSize={9} stroke="var(--text-muted)" angle={-25} textAnchor="end" interval={0} tickFormatter={(val) => (val?.length > 10 ? `${val.substring(0, 9)}…` : val)} />
+                    <YAxis fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Area type="monotone" dataKey="count" stroke="#FF7A45" strokeWidth={2.2} fill="url(#workforceRoleGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : roleChartType === 'Line' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={displayedWorkTypes} margin={{ top: 10, right: 15, left: -15, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                    <XAxis dataKey="type" fontSize={9} stroke="var(--text-muted)" angle={-25} textAnchor="end" interval={0} tickFormatter={(val) => (val?.length > 10 ? `${val.substring(0, 9)}…` : val)} />
+                    <YAxis fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Line type="monotone" dataKey="count" stroke="#FF7A45" strokeWidth={2.5} dot={{ r: 4, fill: '#FF7A45' }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : roleChartType === 'Donut' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Pie
+                      data={displayedWorkTypes}
+                      dataKey="count"
+                      nameKey="type"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      cursor="pointer"
+                      onClick={(d) => openSlideOver('drill_workforce', { work_type: d?.type } as never)}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium truncate">{vendor.vendor ?? '—'}</span>
-                        <span className="text-xs text-muted-foreground">{present}/{total}</span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={cn('h-full rounded-full', availability >= 90 ? 'bg-healthy' : availability >= 80 ? 'bg-warning' : 'bg-critical')}
-                          style={{ width: `${availability}%` }}
-                        />
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground text-right">{availability}% availability</div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      {displayedWorkTypes.map((entry, index) => (
+                        <Cell key={`cell-role-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : roleChartType === 'Horizontal Bar' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={displayedWorkTypes} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" />
+                    <XAxis type="number" fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <YAxis type="category" dataKey="type" fontSize={10} stroke="var(--text-muted)" width={85} tickFormatter={(val) => (val?.length > 12 ? `${val.substring(0, 11)}…` : val)} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Bar
+                      dataKey="count"
+                      name="Staff"
+                      radius={[0, 4, 4, 0]}
+                      barSize={18}
+                      cursor="pointer"
+                      onClick={(d) => openSlideOver('drill_workforce', { work_type: d?.type } as never)}
+                    >
+                      {displayedWorkTypes.map((entry, index) => (
+                        <Cell key={`cell-role-hbar-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : roleChartType === 'Vertical Bar' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={displayedWorkTypes} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+                    <XAxis dataKey="type" fontSize={9} stroke="var(--text-muted)" angle={-25} textAnchor="end" interval={0} tickFormatter={(val) => (val?.length > 10 ? `${val.substring(0, 9)}…` : val)} />
+                    <YAxis fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Bar
+                      dataKey="count"
+                      name="Staff"
+                      radius={[4, 4, 0, 0]}
+                      barSize={20}
+                      cursor="pointer"
+                      onClick={(d) => openSlideOver('drill_workforce', { work_type: d?.type } as never)}
+                    >
+                      {displayedWorkTypes.map((entry, index) => (
+                        <Cell key={`cell-role-vbar-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={displayedWorkTypes} cx="50%" cy="50%" outerRadius={70}>
+                    <PolarGrid stroke="var(--border-color)" />
+                    <PolarAngleAxis dataKey="type" fontSize={9} stroke="var(--text-muted)" tickFormatter={(val) => (val?.length > 8 ? `${val.substring(0, 7)}…` : val)} />
+                    <PolarRadiusAxis fontSize={9} stroke="var(--text-muted)" />
+                    <Radar name="Staff" dataKey="count" stroke="#FF7A45" fill="#FF7A45" fillOpacity={0.4} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
           </div>
-        )}
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '0.6875rem',
+              color: 'var(--text-muted)',
+              paddingTop: '10px',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <span>Showing {roleTopN === 'All' ? rawWorkTypes.length : roleTopN} of {rawWorkTypes.length} Roles</span>
+            <span style={{ color: '#00E676', fontWeight: 700 }}>Click to inspect role</span>
+          </div>
+        </div>
       </div>
     </section>
   );

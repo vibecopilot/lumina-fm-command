@@ -1,11 +1,18 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { SectionHeader } from './SectionHeader';
 import { usePPMOperations } from '@/hooks/useGroupedDashboard';
-import { ClipboardCheck, ChevronDown, ChevronUp, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
+import {
+  ClipboardCheck,
+  ChevronDown,
+  Check,
+  Search,
+  Sparkles,
+  BarChart2,
+  ListFilter,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+} from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -14,821 +21,991 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
-  PieChart,
-  Pie,
   Cell,
+  Legend,
   LineChart,
   Line,
   AreaChart,
   Area,
+  PieChart,
+  Pie,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
 } from 'recharts';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useDashboardFilterOptions } from '@/hooks/useDashboardFilterOptions';
-import type { SiteOption } from '@/hooks/useDashboardFilterOptions';
+
+type OperationMode = 'ppm' | 'soft_services';
 
 type ChartType =
-  | 'bar-horizontal'
-  | 'bar-vertical'
-  | 'line'
-  | 'area'
-  | 'pie'
-  | 'donut'
-  | 'radar';
+  | 'Vertical Bar'
+  | 'Horizontal Bar'
+  | 'Line'
+  | 'Area'
+  | 'Donut'
+  | 'Radar';
 
-const CHART_TYPE_OPTIONS: { value: ChartType; label: string }[] = [
-  { value: 'bar-horizontal', label: 'Horizontal Bar' },
-  { value: 'bar-vertical', label: 'Vertical Bar' },
-  { value: 'line', label: 'Line' },
-  { value: 'area', label: 'Area' },
-  { value: 'pie', label: 'Pie' },
-  { value: 'donut', label: 'Donut' },
-  { value: 'radar', label: 'Radar' },
+const CHART_TYPES: ChartType[] = [
+  'Vertical Bar' ,
+  'Horizontal Bar',
+  'Line',
+  'Area',
+  'Donut',
+  'Radar',
 ];
 
-function isChartType(value: unknown): value is ChartType {
-  return typeof value === 'string' && CHART_TYPE_OPTIONS.some((o) => o.value === value);
-}
+const TOP_N_OPTIONS = ['Top 5', 'Top 10', 'All'] as const;
+type TopNOption = (typeof TOP_N_OPTIONS)[number];
 
-/** Reads a persisted chart type from localStorage, falling back to the given default */
-function getInitialChartType(storageKey: string, fallback: ChartType): ChartType {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const stored = window.localStorage.getItem(storageKey);
-    return isChartType(stored) ? stored : fallback;
-  } catch {
-    return fallback;
-  }
-}
+export function PPMSoftServices() {
+  const { openSlideOver, filters, updateFilter } = useDashboard();
+  const { data, isPending: isLoading } = usePPMOperations(filters);
+  const { sites } = useDashboardFilterOptions(filters);
 
-function SiteFilterSelect({
-  siteId,
-  groupId,
-  sites,
-  onChange,
-}: {
-  siteId: string | null;
-  groupId: string | null;
-  sites: SiteOption[];
-  onChange: (siteId: string | null) => void;
-}) {
-  return (
-    <Select
-      value={siteId || 'all'}
-      onValueChange={(value) =>
-        onChange(value === 'all' ? null : value)
-      }
-    >
-      <SelectTrigger className="w-32 sm:w-44 h-8 text-xs shrink-0">
-        <SelectValue placeholder="All Sites" />
-      </SelectTrigger>
+  const [mode, setMode] = useState<OperationMode>('ppm');
+  const [chartType, setChartType] = useState<ChartType>('Vertical Bar');
+  const [topN, setTopN] = useState<TopNOption>('Top 5');
+  const [chartDropdownOpen, setChartDropdownOpen] = useState(false);
+  const [topNDropdownOpen, setTopNDropdownOpen] = useState(false);
+  const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'highest' | 'lowest' | 'alphabetical'>('highest');
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
 
-      <SelectContent className="max-h-64">
-        <SelectItem value="all" className="text-xs">
-          All Sites
-        </SelectItem>
-
-        {sites
-          .filter(
-            (site) =>
-              site.name !== 'HO' &&
-              (!groupId || site.group_id === groupId)
-          )
-          .map((site) => (
-            <SelectItem
-              key={site.id}
-              value={site.id}
-              className="text-xs"
-            >
-              {site.name}
-            </SelectItem>
-          ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-/** Persists chart type selection to localStorage under the given key */
-function usePersistedChartType(storageKey: string, fallback: ChartType) {
-  const [value, setValue] = useState<ChartType>(() => getInitialChartType(storageKey, fallback));
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(storageKey, value);
-    } catch {
-      // localStorage unavailable - selection just won't persist across refresh
-    }
-  }, [storageKey, value]);
-
-  return [value, setValue] as const;
-}
-
-/** Small self-contained dropdown matching the app's chart-type selector style */
-function ChartTypeDropdown({
-  value,
-  onChange,
-}: {
-  value: ChartType;
-  onChange: (value: ChartType) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const chartDropdownRef = useRef<HTMLDivElement>(null);
+  const topNDropdownRef = useRef<HTMLDivElement>(null);
+  const siteDropdownRef = useRef<HTMLDivElement>(null);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
+      if (chartDropdownRef.current && !chartDropdownRef.current.contains(e.target as Node)) {
+        setChartDropdownOpen(false);
+      }
+      if (topNDropdownRef.current && !topNDropdownRef.current.contains(e.target as Node)) {
+        setTopNDropdownOpen(false);
+      }
+      if (siteDropdownRef.current && !siteDropdownRef.current.contains(e.target as Node)) {
+        setSiteDropdownOpen(false);
+      }
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setSortDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectedLabel = CHART_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? 'Chart Type';
+  const ppmData = data?.ppm;
+  const softServicesData = data?.soft_services;
+
+  const activeStats = useMemo(() => {
+    if (mode === 'ppm') {
+      const completed = ppmData?.completed ?? 0;
+      const pending = ppmData?.pending ?? 0;
+      const overdue = ppmData?.overdue ?? 0;
+      const total = ppmData?.total ?? (completed + pending + overdue);
+      const compliance = Number(ppmData?.completion_percentage ?? (total > 0 ? (completed / total) * 100 : 0));
+      return { completed, pending, overdue, total, compliance };
+    } else {
+      const completed = softServicesData?.completed ?? 0;
+      const pending = softServicesData?.pending ?? 0;
+      const overdue = softServicesData?.overdue ?? 0;
+      const total = softServicesData?.total ?? (completed + pending + overdue);
+      const compliance = Number(softServicesData?.completion_percentage ?? (total > 0 ? (completed / total) * 100 : 0));
+      return { completed, pending, overdue, total, compliance };
+    }
+  }, [mode, ppmData, softServicesData]);
+
+  const rawPlannedVsAchieved = useMemo(() => {
+    return (ppmData?.by_category ?? []).map((item) => ({
+      category: item.category,
+      planned: Number(item.total || 0),
+      achieved: Number(item.completed || 0),
+    }));
+  }, [ppmData]);
+
+  const displayedPlannedVsAchieved = useMemo(() => {
+    if (topN === 'Top 5') return rawPlannedVsAchieved.slice(0, 5);
+    if (topN === 'Top 10') return rawPlannedVsAchieved.slice(0, 10);
+    return rawPlannedVsAchieved;
+  }, [rawPlannedVsAchieved, topN]);
+
+  const categoryComplianceList = useMemo(() => {
+    let items = (ppmData?.by_category ?? []).map((cat) => ({
+      name: cat.category,
+      completed: Number(cat.completed || 0),
+      total: Number(cat.total || 0),
+      percentage: Number(cat.completion_percentage || 0),
+    }));
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      items = items.filter((c) => c.name.toLowerCase().includes(q));
+    }
+
+    if (sortBy === 'highest') {
+      items.sort((a, b) => b.percentage - a.percentage);
+    } else if (sortBy === 'lowest') {
+      items.sort((a, b) => a.percentage - b.percentage);
+    } else {
+      items.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return items;
+  }, [ppmData, searchQuery, sortBy]);
+
+  const selectedSiteObj = sites.find((s) => s.id === filters.site_id);
+  const selectedSiteName = selectedSiteObj?.name || 'All Sites';
 
   return (
-    <div className="relative" ref={ref}>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-6 px-2 text-2xs gap-1"
-        onClick={() => setOpen((o) => !o)}
+    <section id="ppm-section" style={{ marginBottom: '32px' }} className="animate-fade-in stagger-5">
+      {/* Section Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '16px',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
       >
-        {selectedLabel}
-        {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-      </Button>
-
-      {open && (
-        <div className="absolute right-0 mt-1 w-36 rounded-md border bg-popover shadow-lg z-20 overflow-hidden">
-          {CHART_TYPE_OPTIONS.map((opt) => {
-            const isSelected = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-                className={cn(
-                  'w-full text-left px-3 py-1.5 text-2xs flex items-center justify-between transition-colors',
-                  isSelected
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted text-foreground'
-                )}
-              >
-                {opt.label}
-                {isSelected && <Check className="h-3 w-3" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const TOOLTIP_STYLE = { fontSize: '12px', borderRadius: '8px', border: '1px solid hsl(var(--border))' };
-
-/** Generic renderer for a simple two-slice completion breakdown (Completed vs Remaining) */
-function CompletionChart({
-  data,
-  chartType,
-  completedColor = 'hsl(142, 71%, 45%)',
-  remainingColor = 'hsl(var(--muted))',
-}: {
-  data: { name: string; value: number }[];
-  chartType: ChartType;
-  completedColor?: string;
-  remainingColor?: string;
-}) {
-  const colors = [completedColor, remainingColor];
-
-  switch (chartType) {
-    case 'donut':
-      return (
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={45}
-              outerRadius={65}
-              paddingAngle={2}
-              dataKey="value"
-              startAngle={90}
-              endAngle={-270}
-              stroke="none"
-            >
-              {data.map((_, i) => (
-                <Cell key={i} fill={colors[i % colors.length]} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
-          </PieChart>
-        </ResponsiveContainer>
-      );
-
-    case 'pie':
-      return (
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              outerRadius={65}
-              dataKey="value"
-              label={({ name }) => name}
-            >
-              {data.map((_, i) => (
-                <Cell key={i} fill={colors[i % colors.length]} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
-          </PieChart>
-        </ResponsiveContainer>
-      );
-
-    case 'bar-vertical':
-      return (
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="name" fontSize={10} />
-            <YAxis fontSize={10} allowDecimals={false} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
-            <Bar dataKey="value" name="Count" radius={[4, 4, 0, 0]} maxBarSize={40}>
-              {data.map((_, i) => (
-                <Cell key={i} fill={colors[i % colors.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      );
-
-    case 'bar-horizontal':
-      return (
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ top: 10, right: 15, left: 10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-            <XAxis type="number" fontSize={10} allowDecimals={false} />
-            <YAxis type="category" dataKey="name" fontSize={10} width={70} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
-            <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]} maxBarSize={28}>
-              {data.map((_, i) => (
-                <Cell key={i} fill={colors[i % colors.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      );
-
-    case 'line':
-      return (
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" fontSize={10} />
-            <YAxis fontSize={10} allowDecimals={false} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
-            <Line type="monotone" dataKey="value" name="Count" stroke={completedColor} strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
-      );
-
-    case 'area':
-      return (
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" fontSize={10} />
-            <YAxis fontSize={10} allowDecimals={false} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
-            <Area type="monotone" dataKey="value" name="Count" stroke={completedColor} fill={completedColor} fillOpacity={0.3} />
-          </AreaChart>
-        </ResponsiveContainer>
-      );
-
-    case 'radar':
-      return (
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={data}>
-            <PolarGrid />
-            <PolarAngleAxis dataKey="name" tick={{ fontSize: 9 }} />
-            <PolarRadiusAxis tick={{ fontSize: 9 }} allowDecimals={false} />
-            <Radar name="Count" dataKey="value" stroke={completedColor} fill={completedColor} fillOpacity={0.4} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
-          </RadarChart>
-        </ResponsiveContainer>
-      );
-
-    default:
-      return null;
-  }
-}
-
-export function PPMSoftServices() {
-  const { currentRole, filters, openSlideOver, updateFilter, } = useDashboard();
-  const { data, isPending: isLoading } = usePPMOperations(filters);
-  const { sites } = useDashboardFilterOptions(filters);
-
-  const [ppmChartType, setPpmChartType] = usePersistedChartType('ppmSoftServices.ppmChartType', 'donut');
-  const [softServicesChartType, setSoftServicesChartType] = usePersistedChartType(
-    'ppmSoftServices.softServicesChartType',
-    'donut'
-  );
-  const [plannedVsAchievedChartType, setPlannedVsAchievedChartType] = usePersistedChartType(
-    'ppmSoftServices.plannedVsAchievedChartType',
-    'bar-vertical'
-  );
-
-  const ppm = data?.ppm;
-  const softServices = data?.soft_services;
-
-  const ppmDonutData = [
-    { name: 'Completed', value: ppm?.completed ?? 0 },
-    { name: 'Remaining', value: Math.max((ppm?.total ?? 0) - (ppm?.completed ?? 0), 0) },
-  ];
-
-  const softServicesDonutData = [
-    { name: 'Completed', value: softServices?.completed ?? 0 },
-    {
-      name: 'Remaining',
-      value: Math.max(
-        (softServices?.completed ?? 0) +
-        (softServices?.pending ?? 0) +
-        (softServices?.overdue ?? 0) -
-        (softServices?.completed ?? 0),
-        0
-      ),
-    },
-  ];
-
-  const plannedVsAchieved = (ppm?.by_category ?? []).map(cat => ({
-    name: cat.category,
-    planned: cat.total,
-    achieved: cat.completed,
-    compliance: cat.completion_percentage,
-  }));
-
-  const complianceRate = ppm?.completion_percentage ?? 0;
-
-  // The center "%" overlay only makes visual sense on donut/pie; hide it for other chart types
-  const showPpmCenterLabel = ppmChartType === 'donut' || ppmChartType === 'pie';
-  const showSoftServicesCenterLabel = softServicesChartType === 'donut' || softServicesChartType === 'pie';
-
-  const handleCategoryClick = (name?: string) => {
-    if (name) openSlideOver('drill_ppm', { type: 'category', value: name });
-  };
-
-  const renderPlannedVsAchievedChart = () => {
-    if (plannedVsAchieved.length === 0) {
-      return (
-        <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-          No category data available
-        </div>
-      );
-    }
-
-    switch (plannedVsAchievedChartType) {
-      case 'bar-vertical':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={plannedVsAchieved}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" fontSize={10} />
-              <YAxis fontSize={10} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Bar
-                dataKey="planned"
-                name="Planned"
-                fill="hsl(213, 40%, 75%)"
-                radius={[4, 4, 0, 0]}
-                onClick={(d) => handleCategoryClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              />
-              <Bar
-                dataKey="achieved"
-                name="Achieved"
-                fill="hsl(142, 71%, 45%)"
-                radius={[4, 4, 0, 0]}
-                onClick={(d) => handleCategoryClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        );
-
-      case 'bar-horizontal':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={plannedVsAchieved} layout="vertical" margin={{ top: 10, right: 15, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" fontSize={10} />
-              <YAxis type="category" dataKey="name" fontSize={10} width={90} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Bar
-                dataKey="planned"
-                name="Planned"
-                fill="hsl(213, 40%, 75%)"
-                radius={[0, 4, 4, 0]}
-                onClick={(d) => handleCategoryClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              />
-              <Bar
-                dataKey="achieved"
-                name="Achieved"
-                fill="hsl(142, 71%, 45%)"
-                radius={[0, 4, 4, 0]}
-                onClick={(d) => handleCategoryClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        );
-
-      case 'line':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={plannedVsAchieved}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={10} />
-              <YAxis fontSize={10} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Line type="monotone" dataKey="planned" name="Planned" stroke="hsl(213, 60%, 55%)" strokeWidth={2} />
-              <Line type="monotone" dataKey="achieved" name="Achieved" stroke="hsl(142, 71%, 45%)" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        );
-
-      case 'area':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={plannedVsAchieved}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={10} />
-              <YAxis fontSize={10} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Area type="monotone" dataKey="planned" name="Planned" stroke="hsl(213, 60%, 55%)" fill="hsl(213, 60%, 55%)" fillOpacity={0.25} />
-              <Area type="monotone" dataKey="achieved" name="Achieved" stroke="hsl(142, 71%, 45%)" fill="hsl(142, 71%, 45%)" fillOpacity={0.3} />
-            </AreaChart>
-          </ResponsiveContainer>
-        );
-
-      case 'radar':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={plannedVsAchieved}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="name" tick={{ fontSize: 9 }} />
-              <PolarRadiusAxis tick={{ fontSize: 9 }} />
-              <Radar name="Planned" dataKey="planned" stroke="hsl(213, 60%, 55%)" fill="hsl(213, 60%, 55%)" fillOpacity={0.25} />
-              <Radar name="Achieved" dataKey="achieved" stroke="hsl(142, 71%, 45%)" fill="hsl(142, 71%, 45%)" fillOpacity={0.35} />
-              <Legend wrapperStyle={{ fontSize: '10px' }} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} />
-            </RadarChart>
-          </ResponsiveContainer>
-        );
-
-      // Pie/Donut can't show two series (planned + achieved) as a single ring meaningfully,
-      // so these two modes show "Achieved" per category as slices.
-      case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={plannedVsAchieved}
-                dataKey="achieved"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={75}
-                label={({ name }) => name}
-                onClick={(d) => handleCategoryClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              >
-                {plannedVsAchieved.map((_, i) => (
-                  <Cell key={i} fill={`hsl(${(i * 47) % 360}, 65%, 55%)`} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'Achieved']} />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-
-      case 'donut':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={plannedVsAchieved}
-                dataKey="achieved"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={40}
-                outerRadius={75}
-                onClick={(d) => handleCategoryClick(d?.name)}
-                style={{ cursor: 'pointer' }}
-              >
-                {plannedVsAchieved.map((_, i) => (
-                  <Cell key={i} fill={`hsl(${(i * 47) % 360}, 65%, 55%)`} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [v, 'Achieved']} />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <section className="py-4 sm:py-6 border-t">
-      <div className="container">
-        <SectionHeader
-          title="PPM & Soft Services Operations"
-          subtitle={
-            isLoading
-              ? 'Loading...'
-              : `${ppm?.total ?? 0} scheduled tasks`
-          }
-          icon={<ClipboardCheck className="h-4 w-4" />}
-          actions={
-            <SiteFilterSelect
-              siteId={filters.site_id}
-              groupId={filters.group_id}
-              sites={sites}
-              onChange={(siteId) =>
-                updateFilter('site_id', siteId)
-              }
-            />
-          }
-        />
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Skeleton className="h-64 rounded-lg" />
-            <Skeleton className="h-64 rounded-lg" />
-            <Skeleton className="h-64 rounded-lg" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(0, 200, 83, 0.15)',
+              border: '1px solid rgba(0, 200, 83, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#00E676',
+            }}
+          >
+            <ClipboardCheck size={20} strokeWidth={2.2} />
           </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Top row: stats + chart + compliance */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
-              {/* Overall Stats */}
-              <div className="sm:col-span-1 lg:col-span-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+          <div>
+            <h3
+              style={{
+                fontSize: '1.25rem',
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+                margin: 0,
+              }}
+            >
+              Planned Preventive Maintenance & Soft Services
+            </h3>
+            <p
+              style={{
+                fontSize: '0.8125rem',
+                color: 'var(--text-muted)',
+                margin: '2px 0 0 0',
+              }}
+            >
+              Comprehensive maintenance schedules, operational workflows, and service audits across {selectedSiteName}
+            </p>
+          </div>
+        </div>
 
-                  {/* PPM Compliance Chart */}
-                  <div className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <div
-                        className="text-xs text-muted-foreground cursor-pointer"
-                        onClick={() => openSlideOver('kpi_ppm', null)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && openSlideOver('kpi_ppm', null)}
-                      >
-                        PPM Compliance
-                      </div>
-                      <ChartTypeDropdown value={ppmChartType} onChange={setPpmChartType} />
-                    </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Mode Pill Toggle */}
+          <div
+            style={{
+              display: 'flex',
+              backgroundColor: 'var(--glass-bg)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              padding: '3px',
+              gap: '4px',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setMode('ppm')}
+              style={{
+                padding: '5px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: mode === 'ppm' ? '#00C853' : 'transparent',
+                color: mode === 'ppm' ? '#FFFFFF' : 'var(--text-muted)',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              PPM Operations
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('soft_services')}
+              style={{
+                padding: '5px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: mode === 'soft_services' ? '#FF5B22' : 'transparent',
+                color: mode === 'soft_services' ? '#FFFFFF' : 'var(--text-muted)',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Soft Services Operations
+            </button>
+          </div>
 
+          {/* Site Pill Dropdown */}
+          <div ref={siteDropdownRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setSiteDropdownOpen(!siteDropdownOpen)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                backgroundColor: 'var(--glass-bg)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                color: 'var(--text-primary)',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>{selectedSiteName}</span>
+              <ChevronDown
+                size={14}
+                style={{
+                  color: 'var(--text-muted)',
+                  transform: siteDropdownOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.15s ease',
+                }}
+              />
+            </button>
+            {siteDropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  right: 0,
+                  width: '200px',
+                  maxHeight: '260px',
+                  overflowY: 'auto',
+                  backgroundColor: 'var(--dropdown-bg)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  boxShadow: 'var(--shadow-elevation)',
+                  zIndex: 60,
+                  padding: '4px',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateFilter('site_id', null);
+                    setSiteDropdownOpen(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: !filters.site_id ? 'rgba(0, 200, 83, 0.15)' : 'transparent',
+                    color: !filters.site_id ? '#00E676' : 'var(--text-primary)',
+                    fontSize: '0.8125rem',
+                    fontWeight: !filters.site_id ? 700 : 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  All Sites
+                </button>
+                {sites.map((site) => (
+                  <button
+                    key={site.id}
+                    type="button"
+                    onClick={() => {
+                      updateFilter('site_id', site.id);
+                      setSiteDropdownOpen(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: filters.site_id === site.id ? 'rgba(0, 200, 83, 0.15)' : 'transparent',
+                      color: filters.site_id === site.id ? '#00E676' : 'var(--text-primary)',
+                      fontSize: '0.8125rem',
+                      fontWeight: filters.site_id === site.id ? 700 : 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {site.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 4 Top Metric KPI Cards */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '14px',
+          marginBottom: '16px',
+        }}
+      >
+        {/* Compliance Rate */}
+        <div
+          onClick={() => openSlideOver('kpi_ppm')}
+          className="glass-card glass-card-lift"
+          style={{
+            padding: '16px 20px',
+            background: mode === 'ppm'
+              ? 'linear-gradient(135deg, rgba(0, 200, 83, 0.9) 0%, rgba(4, 120, 87, 0.95) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 91, 34, 0.9) 0%, rgba(194, 65, 12, 0.95) 100%)',
+            border: `1px solid ${mode === 'ppm' ? 'rgba(0, 200, 83, 0.4)' : 'rgba(255, 91, 34, 0.4)'}`,
+            boxShadow: `0 8px 24px ${mode === 'ppm' ? 'rgba(0, 200, 83, 0.25)' : 'rgba(255, 91, 34, 0.25)'}`,
+            color: '#FFFFFF',
+            cursor: 'pointer',
+            borderRadius: '12px',
+          }}
+          title="Click to inspect compliance audit"
+        >
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
+            {mode === 'ppm' ? 'PPM Compliance' : 'Soft Services Compliance'}
+          </span>
+          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
+            {activeStats.compliance.toFixed(1)}%
+          </div>
+          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>
+            {activeStats.compliance >= 90 ? 'High performing' : 'Requires escalation'} • Click to drill
+          </span>
+        </div>
+
+        {/* Completed */}
+        <div
+          onClick={() => openSlideOver('drill_ppm', { status: 'completed' } as never)}
+          className="glass-card glass-card-lift"
+          style={{
+            padding: '16px 20px',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.85) 0%, rgba(5, 150, 105, 0.95) 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.4)',
+            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.25)',
+            color: '#FFFFFF',
+            cursor: 'pointer',
+            borderRadius: '12px',
+          }}
+          title="Click to inspect completed tasks"
+        >
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
+            Completed Tasks
+          </span>
+          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
+            {activeStats.completed.toLocaleString()}
+          </div>
+          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>Successfully verified • Click to drill</span>
+        </div>
+
+        {/* Pending */}
+        <div
+          onClick={() => openSlideOver('drill_ppm', { status: 'pending' } as never)}
+          className="glass-card glass-card-lift"
+          style={{
+            padding: '16px 20px',
+            background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.85) 0%, rgba(180, 83, 9, 0.95) 100%)',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
+            boxShadow: '0 8px 24px rgba(217, 119, 6, 0.25)',
+            color: '#FFFFFF',
+            cursor: 'pointer',
+            borderRadius: '12px',
+          }}
+          title="Click to inspect pending tasks"
+        >
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
+            Pending Tasks
+          </span>
+          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
+            {activeStats.pending.toLocaleString()}
+          </div>
+          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>Within schedule • Click to drill</span>
+        </div>
+
+        {/* Overdue */}
+        <div
+          onClick={() => openSlideOver('drill_ppm', { status: 'overdue' } as never)}
+          className="glass-card glass-card-lift"
+          style={{
+            padding: '16px 20px',
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.85) 0%, rgba(185, 28, 28, 0.95) 100%)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            boxShadow: '0 8px 24px rgba(239, 68, 68, 0.25)',
+            color: '#FFFFFF',
+            cursor: 'pointer',
+            borderRadius: '12px',
+          }}
+          title="Click to inspect overdue tasks"
+        >
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
+            Overdue Tasks
+          </span>
+          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
+            {activeStats.overdue.toLocaleString()}
+          </div>
+          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>Requires immediate intervention</span>
+        </div>
+      </div>
+
+      {/* 2 Large Analytic Cards */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          gap: '16px',
+        }}
+      >
+        {/* Card 1: Planned vs Achieved Checklist Compliance */}
+        <div
+          className="glass-card glass-card-lift"
+          style={{
+            padding: '22px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            minHeight: '380px',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '14px',
+                flexWrap: 'wrap',
+                gap: '8px',
+              }}
+            >
+              <div>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  Planned vs. Achieved Compliance
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                  Execution parity across scheduled maintenance categories.
+                </p>
+              </div>
+
+              {/* Chart Switcher & Top N Dropdown */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {/* Chart Type Dropdown */}
+                <div ref={chartDropdownRef} style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={() => setChartDropdownOpen(!chartDropdownOpen)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      backgroundColor: 'var(--glass-bg)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>{chartType}</span>
+                    <ChevronDown size={12} />
+                  </button>
+                  {chartDropdownOpen && (
                     <div
-                      className="relative h-[150px] w-full cursor-pointer"
-                      onClick={() => openSlideOver('kpi_ppm', null)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && openSlideOver('kpi_ppm', null)}
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        right: 0,
+                        width: '130px',
+                        backgroundColor: 'var(--dropdown-bg)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        boxShadow: 'var(--shadow-elevation)',
+                        zIndex: 60,
+                        padding: '4px',
+                      }}
                     >
-                      <CompletionChart data={ppmDonutData} chartType={ppmChartType} />
-
-                      {showPpmCenterLabel && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="text-center">
-                            <div
-                              className={cn(
-                                'text-2xl font-bold',
-                                complianceRate >= 85
-                                  ? 'text-healthy'
-                                  : complianceRate >= 70
-                                    ? 'text-warning'
-                                    : 'text-critical'
-                              )}
-                            >
-                              {complianceRate}%
-                            </div>
-                            <div className="text-[10px] text-muted-foreground">
-                              Compliance
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* PPM Stats */}
-                    <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t">
-                      <div className="text-center">
-                        <div className="text-sm font-semibold text-healthy">
-                          {ppm?.completed ?? 0}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          Completed
-                        </div>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="text-sm font-semibold">
-                          {ppm?.pending ?? 0}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          Pending
-                        </div>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="text-sm font-semibold text-critical">
-                          {ppm?.overdue ?? 0}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          Overdue
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Soft Services Chart */}
-                  {softServices && (
-                    <div className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs text-muted-foreground">
-                          Soft Services
-                        </div>
-                        <ChartTypeDropdown value={softServicesChartType} onChange={setSoftServicesChartType} />
-                      </div>
-
-                      <div className="relative h-[150px] w-full">
-                        <CompletionChart data={softServicesDonutData} chartType={softServicesChartType} />
-
-                        {showSoftServicesCenterLabel && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="text-center">
-                              <div
-                                className={cn(
-                                  'text-2xl font-bold',
-                                  softServices.completion_percentage >= 85
-                                    ? 'text-healthy'
-                                    : softServices.completion_percentage >= 70
-                                      ? 'text-warning'
-                                      : 'text-critical'
-                                )}
-                              >
-                                {softServices.completion_percentage}%
-                              </div>
-
-                              <div className="text-[10px] text-muted-foreground">
-                                Compliance
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Soft Services Stats */}
-                      <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t">
-                        <div className="text-center">
-                          <div className="text-sm font-semibold text-healthy">
-                            {softServices.completed}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            Completed
-                          </div>
-                        </div>
-
-                        <div className="text-center">
-                          <div className="text-sm font-semibold">
-                            {softServices.pending}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            Pending
-                          </div>
-                        </div>
-
-                        <div className="text-center">
-                          <div className="text-sm font-semibold text-critical">
-                            {softServices.overdue}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            Overdue
-                          </div>
-                        </div>
-                      </div>
+                      {CHART_TYPES.map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => {
+                            setChartType(type);
+                            setChartDropdownOpen(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '6px 8px',
+                            borderRadius: '4px',
+                            border: 'none',
+                            backgroundColor: chartType === type ? 'rgba(0, 200, 83, 0.15)' : 'transparent',
+                            color: chartType === type ? '#00E676' : 'var(--text-primary)',
+                            fontSize: '0.75rem',
+                            fontWeight: chartType === type ? 700 : 500,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {type}
+                        </button>
+                      ))}
                     </div>
                   )}
-
                 </div>
-              </div>
 
-              {/* Planned vs Achieved Chart */}
-              <div className="sm:col-span-1 lg:col-span-5 border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Planned vs Achieved by Category
-                  </h4>
-                  <ChartTypeDropdown value={plannedVsAchievedChartType} onChange={setPlannedVsAchievedChartType} />
-                </div>
-                <div className="h-[200px]">
-                  {renderPlannedVsAchievedChart()}
-                </div>
-              </div>
-
-              {/* Category Compliance */}
-              <div className="sm:col-span-2 lg:col-span-4 border rounded-lg p-4">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Compliance by Category</h4>
-                <div className="space-y-3 max-h-[220px] overflow-auto">
-                  {plannedVsAchieved.map(cat => (
+                {/* Top N Dropdown */}
+                <div ref={topNDropdownRef} style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={() => setTopNDropdownOpen(!topNDropdownOpen)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      backgroundColor: 'var(--glass-bg)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>{topN}</span>
+                    <ChevronDown size={12} />
+                  </button>
+                  {topNDropdownOpen && (
                     <div
-                      key={cat.name}
-                      className="space-y-1 cursor-pointer hover:bg-muted/30 rounded-lg p-2 -m-2 transition-colors"
-                      onClick={() => openSlideOver('drill_ppm', { type: 'category', value: cat.name })}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && openSlideOver('drill_ppm', { type: 'category', value: cat.name })}
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        right: 0,
+                        width: '100px',
+                        backgroundColor: 'var(--dropdown-bg)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '6px',
+                        boxShadow: 'var(--shadow-elevation)',
+                        zIndex: 60,
+                        padding: '4px',
+                      }}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{cat.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">{cat.achieved}/{cat.planned}</span>
-                          <span className={cn('text-sm font-bold', cat.compliance >= 85 ? 'text-healthy' : cat.compliance >= 70 ? 'text-warning' : 'text-critical')}>
-                            {cat.compliance}%
-                          </span>
-                        </div>
-                      </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={cn('h-full rounded-full transition-all', cat.compliance >= 85 ? 'bg-healthy' : cat.compliance >= 70 ? 'bg-warning' : 'bg-critical')}
-                          style={{ width: `${cat.compliance}%` }}
-                        />
-                      </div>
+                      {TOP_N_OPTIONS.map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setTopN(opt);
+                            setTopNDropdownOpen(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '6px 8px',
+                            borderRadius: '4px',
+                            border: 'none',
+                            backgroundColor: topN === opt ? 'rgba(0, 200, 83, 0.15)' : 'transparent',
+                            color: topN === opt ? '#00E676' : 'var(--text-primary)',
+                            fontSize: '0.75rem',
+                            fontWeight: topN === opt ? 700 : 500,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Category Compliance Grid (FM Head & Ops) */}
-            {currentRole !== 'ceo' && plannedVsAchieved.length > 0 && (
-              <div className="border rounded-lg p-4">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Category Compliance Overview</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                  {plannedVsAchieved.map(cat => (
-                    <div
-                      key={cat.name}
-                      className="border rounded-lg p-3 hover:bg-muted/30 cursor-pointer"
-                      onClick={() => openSlideOver('drill_ppm', { type: 'category', value: cat.name })}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && openSlideOver('drill_ppm', { type: 'category', value: cat.name })}
+            {/* Visualizer Chart */}
+            <div style={{ height: '240px', width: '100%' }}>
+              {displayedPlannedVsAchieved.length === 0 ? (
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+                  No planned checklist data available
+                </div>
+              ) : chartType === 'Horizontal Bar' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={displayedPlannedVsAchieved} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" />
+                    <XAxis type="number" fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <YAxis type="category" dataKey="category" fontSize={10} stroke="var(--text-muted)" width={95} tickFormatter={(val) => (val?.length > 14 ? `${val.substring(0, 13)}…` : val)} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }} />
+                    <Bar dataKey="planned" name="Planned" fill="#3B82F6" radius={[0, 3, 3, 0]} barSize={12} />
+                    <Bar dataKey="achieved" name="Achieved" fill="#00C853" radius={[0, 3, 3, 0]} barSize={12} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : chartType === 'Vertical Bar' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={displayedPlannedVsAchieved} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+                    <XAxis dataKey="category" fontSize={9} stroke="var(--text-muted)" angle={-25} textAnchor="end" interval={0} tickFormatter={(val) => (val?.length > 10 ? `${val.substring(0, 9)}…` : val)} />
+                    <YAxis fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '4px' }} />
+                    <Bar dataKey="planned" name="Planned" fill="#3B82F6" radius={[3, 3, 0, 0]} barSize={14} />
+                    <Bar dataKey="achieved" name="Achieved" fill="#00C853" radius={[3, 3, 0, 0]} barSize={14} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : chartType === 'Line' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={displayedPlannedVsAchieved} margin={{ top: 10, right: 15, left: -15, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                    <XAxis dataKey="category" fontSize={9} stroke="var(--text-muted)" angle={-25} textAnchor="end" interval={0} tickFormatter={(val) => (val?.length > 10 ? `${val.substring(0, 9)}…` : val)} />
+                    <YAxis fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Line type="monotone" dataKey="planned" name="Planned" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="achieved" name="Achieved" stroke="#00C853" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : chartType === 'Area' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={displayedPlannedVsAchieved} margin={{ top: 10, right: 15, left: -15, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                    <XAxis dataKey="category" fontSize={9} stroke="var(--text-muted)" angle={-25} textAnchor="end" interval={0} tickFormatter={(val) => (val?.length > 10 ? `${val.substring(0, 9)}…` : val)} />
+                    <YAxis fontSize={10} stroke="var(--text-muted)" allowDecimals={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Area type="monotone" dataKey="planned" name="Planned" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.2} />
+                    <Area type="monotone" dataKey="achieved" name="Achieved" stroke="#00C853" fill="#00C853" fillOpacity={0.3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : chartType === 'Donut' ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Tooltip contentStyle={{ backgroundColor: 'var(--dropdown-bg)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-primary)' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Pie
+                      data={displayedPlannedVsAchieved}
+                      dataKey="achieved"
+                      nameKey="category"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      paddingAngle={2}
                     >
-                      <div className="text-sm font-medium mb-1 truncate">{cat.name}</div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className={cn('text-xl font-bold', cat.compliance >= 85 ? 'text-healthy' : cat.compliance >= 70 ? 'text-warning' : 'text-critical')}>
-                          {cat.compliance}%
+                      {displayedPlannedVsAchieved.map((_, idx) => (
+                        <Cell key={`pie-ppm-${idx}`} fill={idx % 2 === 0 ? '#00C853' : '#3B82F6'} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={displayedPlannedVsAchieved} cx="50%" cy="50%" outerRadius={70}>
+                    <PolarGrid stroke="var(--border-color)" />
+                    <PolarAngleAxis dataKey="category" fontSize={9} stroke="var(--text-muted)" tickFormatter={(val) => (val?.length > 8 ? `${val.substring(0, 7)}…` : val)} />
+                    <PolarRadiusAxis fontSize={9} stroke="var(--text-muted)" />
+                    <Radar name="Planned" dataKey="planned" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.2} />
+                    <Radar name="Achieved" dataKey="achieved" stroke="#00C853" fill="#00C853" fillOpacity={0.3} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '0.6875rem',
+              color: 'var(--text-muted)',
+              paddingTop: '10px',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <span>Showing {topN === 'All' ? rawPlannedVsAchieved.length : topN} Categories</span>
+            <span style={{ color: '#00E676', fontWeight: 700 }}>
+              {activeStats.compliance.toFixed(1)}% Overall Compliance
+            </span>
+          </div>
+        </div>
+
+        {/* Card 2: Category Compliance Breakdown Progress Bars */}
+        <div
+          className="glass-card glass-card-lift"
+          style={{
+            padding: '22px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            minHeight: '380px',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '12px',
+                flexWrap: 'wrap',
+                gap: '8px',
+              }}
+            >
+              <div>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  Category Compliance Audit
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                  Execution rates by individual operational checklist.
+                </p>
+              </div>
+
+              {/* Sort Dropdown */}
+              <div ref={sortDropdownRef} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    backgroundColor: 'var(--glass-bg)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <ListFilter size={12} />
+                  <span>
+                    {sortBy === 'highest' ? 'Highest %' : sortBy === 'lowest' ? 'Lowest %' : 'A-Z'}
+                  </span>
+                  <ChevronDown size={12} />
+                </button>
+                {sortDropdownOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 4px)',
+                      right: 0,
+                      width: '120px',
+                      backgroundColor: 'var(--dropdown-bg)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      boxShadow: 'var(--shadow-elevation)',
+                      zIndex: 60,
+                      padding: '4px',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('highest');
+                        setSortDropdownOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '6px 8px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        backgroundColor: sortBy === 'highest' ? 'rgba(0, 200, 83, 0.15)' : 'transparent',
+                        color: sortBy === 'highest' ? '#00E676' : 'var(--text-primary)',
+                        fontSize: '0.75rem',
+                        fontWeight: sortBy === 'highest' ? 700 : 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Highest %
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('lowest');
+                        setSortDropdownOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '6px 8px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        backgroundColor: sortBy === 'lowest' ? 'rgba(0, 200, 83, 0.15)' : 'transparent',
+                        color: sortBy === 'lowest' ? '#00E676' : 'var(--text-primary)',
+                        fontSize: '0.75rem',
+                        fontWeight: sortBy === 'lowest' ? 700 : 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Lowest %
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('alphabetical');
+                        setSortDropdownOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '6px 8px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        backgroundColor: sortBy === 'alphabetical' ? 'rgba(0, 200, 83, 0.15)' : 'transparent',
+                        color: sortBy === 'alphabetical' ? '#00E676' : 'var(--text-primary)',
+                        fontSize: '0.75rem',
+                        fontWeight: sortBy === 'alphabetical' ? 700 : 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Alphabetical
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* In-Card Search Input */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                backgroundColor: 'var(--glass-bg)',
+                border: '1px solid var(--border-color)',
+                marginBottom: '12px',
+              }}
+            >
+              <Search size={14} color="var(--text-muted)" />
+              <input
+                type="text"
+                placeholder="Filter checklists..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.75rem',
+                  width: '100%',
+                }}
+              />
+            </div>
+
+            {/* Category List */}
+            <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {categoryComplianceList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+                  No checklists found matching criteria
+                </div>
+              ) : (
+                categoryComplianceList.map((item, idx) => {
+                  const pct = Math.min(Math.max(item.percentage, 0), 100);
+                  const isHigh = pct >= 80;
+                  const isMedium = pct >= 50 && pct < 80;
+                  const barColor = isHigh ? '#00E676' : isMedium ? '#F59E0B' : '#EF4444';
+
+                  return (
+                    <div
+                      key={item.name || idx}
+                      onClick={() => openSlideOver('drill_ppm', { category: item.name } as never)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--glass-bg)',
+                        border: '1px solid var(--border-color)',
+                        cursor: 'pointer',
+                        transition: 'transform 0.15s ease, border-color 0.15s ease',
+                      }}
+                      className="glass-card-lift"
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
+                            maxWidth: '220px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {item.name}
                         </span>
-                        <span className="text-xs text-muted-foreground">{cat.achieved}/{cat.planned}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.6875rem' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            {item.completed}/{item.total}
+                          </span>
+                          <strong style={{ color: barColor }}>{pct.toFixed(0)}%</strong>
+                        </div>
                       </div>
-                      <div className="h-1 bg-muted rounded-full overflow-hidden">
+                      <div
+                        style={{
+                          height: '5px',
+                          width: '100%',
+                          backgroundColor: 'var(--border-color)',
+                          borderRadius: '3px',
+                          overflow: 'hidden',
+                        }}
+                      >
                         <div
-                          className={cn('h-full rounded-full', cat.compliance >= 85 ? 'bg-healthy' : cat.compliance >= 70 ? 'bg-warning' : 'bg-critical')}
-                          style={{ width: `${cat.compliance}%` }}
+                          style={{
+                            height: '100%',
+                            width: `${pct}%`,
+                            backgroundColor: barColor,
+                            borderRadius: '3px',
+                            transition: 'width 0.6s ease',
+                          }}
                         />
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
-        )}
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              fontSize: '0.6875rem',
+              color: 'var(--text-muted)',
+              paddingTop: '10px',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <span>Showing {categoryComplianceList.length} Checklists</span>
+            <span style={{ color: '#00E676', fontWeight: 700 }}>Click checklist to inspect</span>
+          </div>
+        </div>
       </div>
     </section>
   );

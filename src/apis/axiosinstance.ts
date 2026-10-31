@@ -26,9 +26,8 @@ export function clearPublicAuth() {
 axiosInstance.interceptors.request.use((config) => {
   // Prefer module-level public auth when present (used for incognito/public dashboards)
   const token = publicToken ?? localStorage.getItem('token') ?? localStorage.getItem('auth_token');
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers['Authorization'] = `${token}`;
+  if (token && config.headers) {
+    (config.headers as Record<string, any>)['Authorization'] = `${token}`;
   }
 
   // Ensure site_id and token are passed as query params for APIs that expect them
