@@ -22,7 +22,7 @@ export interface FilterState {
 export type SlideOverType =
   | 'site' | 'ticket' | 'asset' | 'vendor' | 'ppm' | 'workforce' | 'visitor' | 'compliance' | 'alert'
   | 'kpi_ticket_sla' | 'kpi_ppm' | 'kpi_asset' | 'kpi_workforce' | 'kpi_vendor_sla' | 'kpi_visitors' | 'kpi_avg_resolution'
-  | 'drill_asset' | 'drill_workforce' | 'drill_site' | 'drill_ppm' | 'drill_visitors'
+  | 'drill_asset' | 'drill_workforce' | 'drill_site' | 'drill_ppm' | 'drill_visitors' | 'drill_ticket'
   | null;
 
 interface SlideOverState {
@@ -44,7 +44,7 @@ interface DashboardContextType {
   
   // Slide-over Panel
   slideOver: SlideOverState;
-  openSlideOver: (type: SlideOverType, data: SlideOverState['data']) => void;
+  openSlideOver: (type: SlideOverType, data?: SlideOverState['data']) => void;
   closeSlideOver: () => void;
   
   // Alerts
@@ -94,8 +94,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries({ queryKey: ['grouped_dashboard'] });
   }, [queryClient]);
 
-  const openSlideOver = useCallback((type: SlideOverType, data: SlideOverState['data']) => {
-    setSlideOver({ isOpen: true, type, data });
+  const openSlideOver = useCallback((type: SlideOverType, data?: SlideOverState['data']) => {
+    setSlideOver({ isOpen: true, type, data: data ?? null });
   }, []);
 
   const closeSlideOver = useCallback(() => {

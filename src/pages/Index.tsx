@@ -1,5 +1,6 @@
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { GlobalFilterBar } from '@/components/dashboard/GlobalFilterBar';
+import { CommandCenterBanner } from '@/components/dashboard/CommandCenterBanner';
 import { ExecutiveKPIStrip } from '@/components/dashboard/ExecutiveKPIStrip';
 import { SitePerformanceOverview } from '@/components/dashboard/SitePerformanceOverview';
 import { AssetPortfolioHealth } from '@/components/dashboard/AssetPortfolioHealth';
@@ -12,16 +13,25 @@ import { AlertsPanel } from '@/components/dashboard/AlertsPanel';
 const Index = () => {
   return (
     <DashboardProvider>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background" style={{ backgroundColor: 'var(--bg-primary)' }}>
         {/* Sticky Global Filter Bar */}
         <GlobalFilterBar />
 
-        {/* Executive KPI Strip */}
-        <ExecutiveKPIStrip />
+        {/* Main Content Area matching Horizon container dimensions */}
+        <main
+          style={{
+            maxWidth: '1680px',
+            margin: '0 auto',
+            padding: '24px 24px 80px 24px',
+          }}
+        >
+          {/* Operations Command Center Futuristic Geometric Banner */}
+          <CommandCenterBanner />
 
-        {/* Main Content - Long Scroll */}
-        <main>
-          {/* Site Performance Overview */}
+          {/* Executive KPI Strip with 6 interactive cards, sparklines, and inspection bar */}
+          <ExecutiveKPIStrip />
+
+          {/* Site Performance Overview with rankings & progress bars */}
           <SitePerformanceOverview />
 
           {/* Asset Portfolio & Health */}
@@ -37,10 +47,10 @@ const Index = () => {
           <WorkforceTracking />
         </main>
 
-        {/* Slide-over Panel for Drill-downs */}
+        {/* Slide-over Drawer for Drill-downs */}
         <SlideOverPanel />
 
-        {/* Alerts Panel (Sticky) */}
+        {/* Alerts Panel (Sticky Bottom-Right) */}
         <AlertsPanel />
       </div>
     </DashboardProvider>
