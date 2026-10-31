@@ -1,773 +1,571 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { SectionHeader } from './SectionHeader';
+import { StatusBadge } from './StatusBadge';
 import { useSitePerformance } from '@/hooks/useGroupedDashboard';
+import { SitePerformanceSite } from '@/types/groupedDashboard';
+import { MapPin, ChevronRight, ChevronDown, ChevronUp, Search, Check } from 'lucide-react';
+import { cn, safeNumber } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Building2,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  Search,
-  ExternalLink,
-  SlidersHorizontal,
-  BarChart2,
-  Table as TableIcon,
-  Flame,
-} from 'lucide-react';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useDashboardFilterOptions } from '@/hooks/useDashboardFilterOptions';
+import type { SiteOption } from '@/hooks/useDashboardFilterOptions';
 
-type MetricMode = 'health' | 'tat' | 'ppm' | 'workforce';
-type ViewMode = 'table' | 'chart' | 'heatmap';
-type ChartType = 'Horizontal Bar' | 'Vertical Bar' | 'Line' | 'Area' | 'Radar';
+type SortField = 'name' | 'health_score' | 'sla_percentage' | 'ppm_percentage' | 'pending_tickets';
+type SortDirection = 'asc' | 'desc';
 
-const METRIC_TABS: { id: MetricMode; label: string; color: string }[] = [
-  { id: 'health', label: 'Overall Health', color: '#00C853' },
-  { id: 'tat', label: 'SLA Adherence (TAT)', color: '#FF5B22' },
-  { id: 'ppm', label: 'PPM Adherence', color: '#00E676' },
-  { id: 'workforce', label: 'Workforce Attendance', color: '#00B0FF' },
+type ChartType =
+  | 'bar-horizontal'
+  | 'bar-vertical'
+  | 'line'
+  | 'area'
+  | 'pie'
+  | 'donut'
+  | 'radar';
+
+const CHART_TYPE_OPTIONS: { value: ChartType; label: string }[] = [
+  { value: 'bar-horizontal', label: 'Horizontal Bar' },
+  { value: 'bar-vertical', label: 'Vertical Bar' },
+  { value: 'line', label: 'Line' },
+  { value: 'area', label: 'Area' },
+  { value: 'pie', label: 'Pie' },
+  { value: 'donut', label: 'Donut' },
+  { value: 'radar', label: 'Radar' },
 ];
 
-const CHART_TYPES: ChartType[] = [
-  'Horizontal Bar',
-  'Vertical Bar',
-  'Line',
-  'Area',
-  'Radar',
-];
+const HEALTH_COLORS = {
+  healthy: '#22c55e',
+  warning: '#f59e0b',
+  critical: '#ef4444',
+};
+
+function getHealthStatus(score: number): 'healthy' | 'warning' | 'critical' {
+  if (score >= 85) return 'healthy';
+  if (score >= 70) return 'warning';
+  return 'critical';
+}
+function SiteFilterSelect({
+  siteId,
+  groupId,
+  sites,
+  onChange,
+}: {
+  siteId: string | null;
+  groupId: string | null;
+  sites: SiteOption[];
+  onChange: (siteId: string | null) => void;
+}) {
+  return (
+    <Select
+      value={siteId || "all"}
+      onValueChange={(value) =>
+        onChange(value === "all" ? null : value)
+      }
+    >
+      <SelectTrigger className="w-32 sm:w-44 h-8 text-xs shrink-0">
+        <SelectValue placeholder="All Sites" />
+      </SelectTrigger>
+
+      <SelectContent className="max-h-64">
+        <SelectItem value="all" className="text-xs">
+          All Sites
+        </SelectItem>
+
+        {sites
+          .filter(
+            (site) =>
+              site.name !== "HO" &&
+              (!groupId || site.group_id === groupId)
+          )
+          .map((site) => (
+            <SelectItem
+              key={site.id}
+              value={site.id}
+              className="text-xs"
+            >
+              {site.name}
+            </SelectItem>
+          ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/** Small self-contained dropdown matching the app's chart-type selector style */
+function ChartTypeDropdown({
+  value,
+  onChange,
+}: {
+  value: ChartType;
+  onChange: (value: ChartType) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedLabel = CHART_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? 'Chart Type';
+
+  return (
+    <div className="relative" ref={ref}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 px-3 text-xs gap-1"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {selectedLabel}
+        {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 mt-1 w-40 rounded-md border bg-popover shadow-lg z-20 overflow-hidden">
+          {CHART_TYPE_OPTIONS.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                className={cn(
+                  'w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors',
+                  isSelected
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted text-foreground'
+                )}
+              >
+                {opt.label}
+                {isSelected && <Check className="h-3.5 w-3.5" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SitePerformanceOverview() {
-  const { filters, openSlideOver } = useDashboard();
-  const { data: rawSiteData, isPending } = useSitePerformance(filters);
+  const { openSlideOver, filters, updateFilter } = useDashboard();
+  const { data, isPending: isLoading } = useSitePerformance(filters);
+  const { sites } = useDashboardFilterOptions(filters);
 
   const [search, setSearch] = useState('');
-  const [metricMode, setMetricMode] = useState<MetricMode>('health');
-  const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const [chartType, setChartType] = useState<ChartType>('Horizontal Bar');
-  const [topN, setTopN] = useState<'Top 5' | 'Top 10' | 'All'>('All');
-  const [sortField, setSortField] = useState<'name' | 'health' | 'tat' | 'ppm' | 'assets'>('health');
-  const [sortAsc, setSortAsc] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const [sortField, setSortField] = useState<SortField>('health_score');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [viewMode, setViewMode] = useState<'table' | 'heatmap'>('table');
+  const [chartType, setChartType] = useState<ChartType>('bar-vertical');
 
-  // Normalize site data
-  const sites = useMemo(() => {
-    const list = rawSiteData?.sites || [];
-    return list.map((s, idx) => {
-      const id = s.id || idx + 1;
-      const name = s.name || `Park #${id}`;
-      const group = s.group || '—';
-      const health = Number(s.health_score ?? 97.9);
-      const tat = Number(s.sla_percentage ?? 100);
-      const ppm = Number(s.ppm_percentage ?? 93.8);
-      const workforce = Number(s.workforce_percentage ?? 15.2);
-      const assets = Number(s.total_assets ?? 0);
-      const tickets = Number((s.open_tickets || 0) + (s.pending_tickets || 0));
-      const closed = Number(s.open_tickets ? Math.max(0, tickets - s.open_tickets) : 0);
-      const status = health >= 85 ? 'Operational' : 'Attention';
-
-      return {
-        id,
-        name,
-        group,
-        health,
-        tat,
-        ppm,
-        workforce,
-        assets,
-        tickets,
-        closed,
-        status,
-        raw: s,
-      };
-    });
-  }, [rawSiteData]);
-
-  // Filtered & sorted sites
   const filteredSites = useMemo(() => {
-    let result = sites;
-    if (search.trim()) {
-      const q = search.toLowerCase().trim();
+    let result = [...(data?.sites ?? [])];
+
+    result = result.filter((site) => site.name?.trim().toUpperCase() !== 'HO');
+
+    if (search) {
+      const searchLower = search.toLowerCase();
       result = result.filter(
         (s) =>
-          s.name.toLowerCase().includes(q) ||
-          s.group.toLowerCase().includes(q)
+          s.name.toLowerCase().includes(searchLower) ||
+          (s.city?.toLowerCase().includes(searchLower) ?? false) ||
+          s.group.toLowerCase().includes(searchLower)
       );
     }
 
-    result = [...result].sort((a, b) => {
-      let valA: string | number = a[sortField];
-      let valB: string | number = b[sortField];
-      if (typeof valA === 'string') {
-        return sortAsc
-          ? (valA as string).localeCompare(valB as string)
-          : (valB as string).localeCompare(valA as string);
+    result.sort((a, b) => {
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+      const modifier = sortDirection === 'asc' ? 1 : -1;
+      if (typeof aVal === 'string') {
+        return (aVal as string).localeCompare(bVal as string) * modifier;
       }
-      return sortAsc ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
+      return ((aVal as number) - (bVal as number)) * modifier;
     });
 
     return result;
-  }, [sites, search, sortField, sortAsc]);
+  }, [data?.sites, search, sortField, sortDirection]);
 
-  // Top N sliced for chart
-  const chartData = useMemo(() => {
-    if (topN === 'Top 5') return filteredSites.slice(0, 5);
-    if (topN === 'Top 10') return filteredSites.slice(0, 10);
-    return filteredSites;
-  }, [filteredSites, topN]);
+  const chartData = useMemo(
+    () =>
+      filteredSites.map((site) => ({
+        name: site.name,
+        health: safeNumber(site.health_score),
+        sla: safeNumber(site.sla_percentage),
+        ppm: safeNumber(site.ppm_percentage),
+        fill: HEALTH_COLORS[getHealthStatus(safeNumber(site.health_score))],
+      })),
+    [filteredSites]
+  );
 
-  // Paginated for table
-  const totalPages = Math.max(1, Math.ceil(filteredSites.length / pageSize));
-  const paginatedSites = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredSites.slice(start, start + pageSize);
-  }, [filteredSites, currentPage, pageSize]);
-
-  const handleSort = (field: typeof sortField) => {
+  const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortAsc(!sortAsc);
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
-      setSortAsc(false);
+      setSortDirection('desc');
     }
   };
 
-  const handleSiteClick = (site: typeof sites[0]) => {
-    openSlideOver('site', {
-      siteId: site.id,
-      id: site.id,
-      name: site.name,
-      site_name: site.name,
-      group: site.group,
-      region: site.group,
-      health: site.health,
-      health_score: site.health,
-      tat: site.tat,
-      sla_percentage: site.tat,
-      ppm: site.ppm,
-      ppm_percentage: site.ppm,
-      total_assets: site.assets,
-      activeAssets: site.assets,
-      pending_tickets: site.tickets,
-      status: site.status,
-    });
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? (
+      <ChevronUp className="h-3 w-3 ml-1" />
+    ) : (
+      <ChevronDown className="h-3 w-3 ml-1" />
+    );
   };
 
-  const activeMetricColor = METRIC_TABS.find((m) => m.id === metricMode)?.color || '#00C853';
+  const getHealthColor = (score: number) => {
+    if (score >= 85) return 'bg-healthy';
+    if (score >= 70) return 'bg-warning';
+    return 'bg-critical';
+  };
+
+  const totalSites = data?.total_sites ?? 0;
+
+  const renderChart = () => {
+    switch (chartType) {
+      case 'bar-vertical':
+        return (
+          <ResponsiveContainer width="100%" height={360}>
+            <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={60} fontSize={11} />
+              <YAxis domain={[0, 100]} fontSize={11} />
+              <Tooltip />
+              <Bar dataKey="health" name="Health" radius={[4, 4, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell key={index} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        );
+
+      case 'bar-horizontal':
+        return (
+          <ResponsiveContainer width="100%" height={Math.max(360, chartData.length * 32)}>
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{ top: 10, right: 20, left: 20, bottom: 10 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" domain={[0, 100]} fontSize={11} />
+              <YAxis type="category" dataKey="name" width={100} fontSize={11} />
+              <Tooltip />
+              <Bar dataKey="health" name="Health" radius={[0, 4, 4, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell key={index} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        );
+
+      case 'line':
+        return (
+          <ResponsiveContainer width="100%" height={360}>
+            <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={60} fontSize={11} />
+              <YAxis domain={[0, 100]} fontSize={11} />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="health" name="Health" stroke="#8f53a1" strokeWidth={2} />
+              <Line type="monotone" dataKey="sla" name="TAT" stroke="#f47920" strokeWidth={2} />
+              <Line type="monotone" dataKey="ppm" name="PPM" stroke="#22c55e" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        );
+
+      case 'area':
+        return (
+          <ResponsiveContainer width="100%" height={360}>
+            <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} height={60} fontSize={11} />
+              <YAxis domain={[0, 100]} fontSize={11} />
+              <Tooltip />
+              <Area type="monotone" dataKey="health" name="Health" stroke="#8f53a1" fill="#8f53a1" fillOpacity={0.3} />
+            </AreaChart>
+          </ResponsiveContainer>
+        );
+
+      case 'pie':
+        return (
+          <ResponsiveContainer width="100%" height={380}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                dataKey="health"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={130}
+                label={({ name }) => name}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={index} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+
+      case 'donut':
+        return (
+          <ResponsiveContainer width="100%" height={380}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                dataKey="health"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={70}
+                outerRadius={130}
+                label={({ name }) => name}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={index} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+
+      case 'radar':
+        return (
+          <ResponsiveContainer width="100%" height={400}>
+            <RadarChart data={chartData}>
+              <PolarGrid />
+              <PolarAngleAxis dataKey="name" fontSize={11} />
+              <PolarRadiusAxis domain={[0, 100]} fontSize={10} />
+              <Radar name="Health" dataKey="health" stroke="#8f53a1" fill="#8f53a1" fillOpacity={0.4} />
+              <Radar name="TAT" dataKey="sla" stroke="#f47920" fill="#f47920" fillOpacity={0.3} />
+              <Legend />
+              <Tooltip />
+            </RadarChart>
+          </ResponsiveContainer>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
-    <section style={{ marginBottom: '32px' }} className="animate-fade-in stagger-2">
-      <div
-        className="glass-card"
-        style={{
-          borderRadius: '20px',
-          padding: '24px 28px',
-          border: '1px solid var(--glass-border)',
-          backgroundColor: 'var(--glass-bg)',
-          boxShadow: 'var(--glass-shadow)',
-        }}
-      >
-        {/* Section Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            flexWrap: 'wrap',
-            marginBottom: '20px',
-            paddingBottom: '16px',
-            borderBottom: '1px solid var(--glass-border)',
-          }}
-        >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Building2 size={20} color="#00C853" />
-              <h2
-                style={{
-                  fontSize: '1.25rem',
-                  fontWeight: 800,
-                  color: 'var(--text-main)',
-                  letterSpacing: '-0.02em',
-                  margin: 0,
-                }}
+    <section className="py-6">
+      <div className="container">
+        <SectionHeader
+          title="Site Performance Overview"
+          subtitle={isLoading ? 'Loading...' : `${filteredSites.length} of ${totalSites} sites`}
+          icon={<MapPin className="h-4 w-4" />}
+          actions={
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search sites..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-8 w-full sm:w-48 pl-8 text-xs"
+                />
+              </div>
+              <div
+                className="flex items-center gap-0.5 text-white rounded-md p-0.5"
+                style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)' }}
               >
-                Site Performance at a Glance
-              </h2>
-              <span
-                style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  color: '#00C853',
-                  padding: '2px 8px',
-                  borderRadius: '999px',
-                  backgroundColor: 'rgba(0, 200, 83, 0.12)',
-                  border: '1px solid rgba(0, 200, 83, 0.3)',
-                }}
-              >
-                {filteredSites.length} Parks Monitored
-              </span>
-            </div>
-            <p
-              style={{
-                fontSize: '0.8125rem',
-                color: 'var(--text-muted)',
-                margin: '4px 0 0 0',
-              }}
-            >
-              Automated operational telemetry snapshot across all active Grade-A Horizon Industrial Parks.
-            </p>
-          </div>
+                <Button
+                  variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setViewMode('table')}
+                >
+                  Table
+                </Button>
+                <Button
+                  variant={viewMode === 'heatmap' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setViewMode('heatmap')}
+                >
+                  Heatmap
+                </Button>
+              </div>
 
-          {/* Controls: Search, View Mode, Top N */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            {/* Search input */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Search
-                size={14}
-                style={{
-                  position: 'absolute',
-                  left: '10px',
-                  color: 'var(--text-muted)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Filter parks..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setCurrentPage(1);
-                }}
-                style={{
-                  padding: '6px 12px 6px 30px',
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  borderRadius: '8px',
-                  border: '1px solid var(--glass-border)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                  color: 'var(--text-main)',
-                  outline: 'none',
-                  minWidth: '160px',
-                }}
+              {/* Chart type dropdown - only relevant/visible in heatmap (chart) view */}
+              {/* {viewMode === 'heatmap' && ( */}
+              <ChartTypeDropdown value={chartType} onChange={setChartType} />
+              {/* )} */}
+
+              {/* ALL SITES - Right side */}
+              <SiteFilterSelect
+                siteId={filters.site_id}
+                groupId={filters.group_id}
+                sites={sites}
+                onChange={(siteId) =>
+                  updateFilter("site_id", siteId)
+                }
               />
             </div>
+          }
+        />
 
-            {/* View Mode Toggle: Table / Chart / Heatmap */}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '2px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid var(--glass-border)',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setViewMode('table')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '4px 10px',
-                  fontSize: '0.6875rem',
-                  fontWeight: viewMode === 'table' ? 700 : 500,
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: viewMode === 'table' ? '#00C853' : 'transparent',
-                  color: viewMode === 'table' ? '#0B0F19' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <TableIcon size={12} />
-                <span>Table Grid</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setViewMode('chart')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '4px 10px',
-                  fontSize: '0.6875rem',
-                  fontWeight: viewMode === 'chart' ? 700 : 500,
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: viewMode === 'chart' ? '#00C853' : 'transparent',
-                  color: viewMode === 'chart' ? '#0B0F19' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <BarChart2 size={12} />
-                <span>Visualizer</span>
-              </button>
-            </div>
-
-            {/* Metric Mode pills */}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                flexWrap: 'wrap',
-              }}
-            >
-              {METRIC_TABS.map((m) => {
-                const isSelected = metricMode === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setMetricMode(m.id)}
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '0.6875rem',
-                      fontWeight: isSelected ? 700 : 500,
-                      borderRadius: '6px',
-                      border: isSelected ? `1px solid ${m.color}` : '1px solid var(--glass-border)',
-                      backgroundColor: isSelected ? `${m.color}22` : 'transparent',
-                      color: isSelected ? m.color : 'var(--text-muted)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {m.label}
-                  </button>
-                );
-              })}
-            </div>
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full rounded" />
+            ))}
           </div>
-        </div>
-
-        {/* Chart View (Visualizer) */}
-        {viewMode === 'chart' && (
-          <div style={{ marginBottom: '20px' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '16px',
-                flexWrap: 'wrap',
-                gap: '12px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  Chart Type:
-                </span>
-                {CHART_TYPES.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setChartType(t)}
-                    style={{
-                      padding: '3px 8px',
-                      fontSize: '0.6875rem',
-                      fontWeight: chartType === t ? 700 : 500,
-                      borderRadius: '6px',
-                      border: chartType === t ? '1px solid #00C853' : '1px solid var(--glass-border)',
-                      backgroundColor: chartType === t ? 'rgba(0, 200, 83, 0.15)' : 'transparent',
-                      color: chartType === t ? '#00E676' : 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  Show:
-                </span>
-                {(['Top 5', 'Top 10', 'All'] as const).map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setTopN(opt)}
-                    style={{
-                      padding: '3px 8px',
-                      fontSize: '0.6875rem',
-                      fontWeight: topN === opt ? 700 : 500,
-                      borderRadius: '6px',
-                      border: topN === opt ? '1px solid #00C853' : '1px solid var(--glass-border)',
-                      backgroundColor: topN === opt ? 'rgba(0, 200, 83, 0.15)' : 'transparent',
-                      color: topN === opt ? '#00E676' : 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Horizontal Bar Chart representation matching reference chart-viewport */}
-            <div className="chart-viewport" style={{ maxHeight: '420px', overflowY: 'auto' }}>
-              <div className="chart-list">
-                {chartData.map((site) => {
-                  const val =
-                    metricMode === 'health'
-                      ? site.health
-                      : metricMode === 'tat'
-                      ? site.tat
-                      : metricMode === 'ppm'
-                      ? site.ppm
-                      : site.workforce;
-
-                  const color = val >= 85 ? '#00C853' : val >= 60 ? '#FF9100' : '#EF4444';
-
-                  return (
-                    <div
-                      key={site.id}
-                      onClick={() => handleSiteClick(site)}
-                      className="chart-row clickable-row"
-                      style={{
-                        backgroundColor: 'var(--table-even-bg)',
-                        border: '1px solid var(--glass-border)',
-                      }}
-                      title={`Click to open ${site.name} performance drilldown`}
+        ) : viewMode === 'table' ? (
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <div className="max-h-[400px] overflow-y-auto">
+                <Table className="data-table min-w-[900px]">
+                  <TableHeader className="sticky top-0 z-10">
+                    <TableRow
+                      className="border-0 hover:bg-transparent"
+                      style={{ background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)' }}
                     >
-                      <div className="chart-row-header">
-                        <div className="chart-category">
-                          <span
-                            style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              backgroundColor: color,
-                              flexShrink: 0,
-                            }}
+                      <TableHead
+                        className="w-[200px] cursor-pointer !bg-transparent !text-white"
+                        onClick={() => handleSort('name')}
+                      >
+                        <div className="flex items-center">
+                          Site Name <SortIcon field="name" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="!bg-transparent !text-white">Region</TableHead>
+                      <TableHead className="!bg-transparent !text-white">City</TableHead>
+                      <TableHead
+                        className="text-center cursor-pointer !bg-transparent !text-white"
+                        onClick={() => handleSort('health_score')}
+                      >
+                        <div className="flex items-center justify-center">
+                          Health <SortIcon field="health_score" />
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="text-center cursor-pointer !bg-transparent !text-white"
+                        onClick={() => handleSort('sla_percentage')}
+                      >
+                        <div className="flex items-center justify-center">
+                          TAT <SortIcon field="sla_percentage" />
+                        </div>
+                      </TableHead>
+                      <TableHead
+                        className="text-center cursor-pointer !bg-transparent !text-white"
+                        onClick={() => handleSort('ppm_percentage')}
+                      >
+                        <div className="flex items-center justify-center">
+                          PPM <SortIcon field="ppm_percentage" />
+                        </div>
+                      </TableHead>
+                      <TableHead className="w-8 !bg-transparent !text-white"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSites.map((site: SitePerformanceSite) => (
+                      <TableRow
+                        key={site.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => openSlideOver('drill_site', { id: site.id, name: site.name })}
+                      >
+                        <TableCell className="font-medium">{site.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{site.group}</TableCell>
+                        <TableCell className="text-muted-foreground">{site.city ?? '—'}</TableCell>
+                        <TableCell className="text-center">
+                          <StatusBadge
+                            status={getHealthStatus(safeNumber(site.health_score))}
+                            label={`${safeNumber(site.health_score)}%`}
                           />
-                          <span style={{ color: 'var(--text-main)', fontSize: '0.8125rem' }}>
-                            {site.name}
-                          </span>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
-                            ({site.group})
-                          </span>
-                        </div>
-                        <div className="chart-value" style={{ color }}>
-                          {val}%
-                        </div>
-                        <div
-                          className="chart-percentage"
-                          style={{
-                            backgroundColor: `${color}22`,
-                            color,
-                          }}
-                        >
-                          {val >= 85 ? 'Healthy' : val >= 60 ? 'Warning' : 'Critical'}
-                        </div>
-                      </div>
-
-                      <div className="progress-track" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
-                        <div
-                          className="progress-fill"
-                          style={{
-                            width: `${Math.min(100, val)}%`,
-                            backgroundColor: color,
-                            boxShadow: `0 0 8px ${color}88`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StatusBadge
+                            status={getHealthStatus(safeNumber(site.sla_percentage))}
+                            label={`${safeNumber(site.sla_percentage)}%`}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <StatusBadge
+                            status={getHealthStatus(safeNumber(site.ppm_percentage))}
+                            label={`${safeNumber(site.ppm_percentage)}%`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           </div>
-        )}
+        ) : (
+          <div className="border rounded-lg p-4">
+            {chartType === 'bar-vertical' &&
+              chartData.length === 0 ? null : (
+              <>{renderChart()}</>
+            )}
 
-        {/* Table Grid View */}
-        {viewMode === 'table' && (
-          <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                fontSize: '0.8125rem',
-                color: 'var(--text-main)',
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: '1px solid var(--glass-border)',
-                    textAlign: 'left',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.75rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  <th style={{ padding: '10px 12px', width: '60px' }}>Rank</th>
-                  <th
-                    style={{ padding: '10px 12px', cursor: 'pointer' }}
-                    onClick={() => handleSort('name')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>Site / Park Name</span>
-                      {sortField === 'name' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                    </div>
-                  </th>
-                  <th style={{ padding: '10px 12px' }}>Region / Group</th>
-                  <th
-                    style={{ padding: '10px 12px', cursor: 'pointer' }}
-                    onClick={() => handleSort('health')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>Overall Health</span>
-                      {sortField === 'health' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                    </div>
-                  </th>
-                  <th
-                    style={{ padding: '10px 12px', cursor: 'pointer' }}
-                    onClick={() => handleSort('tat')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>SLA Adherence</span>
-                      {sortField === 'tat' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                    </div>
-                  </th>
-                  <th
-                    style={{ padding: '10px 12px', cursor: 'pointer' }}
-                    onClick={() => handleSort('ppm')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>PPM Adherence</span>
-                      {sortField === 'ppm' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                    </div>
-                  </th>
-                  <th
-                    style={{ padding: '10px 12px', cursor: 'pointer' }}
-                    onClick={() => handleSort('assets')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>Active Assets</span>
-                      {sortField === 'assets' && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-                    </div>
-                  </th>
-                  <th style={{ padding: '10px 12px' }}>Tickets (Open/Closed)</th>
-                  <th style={{ padding: '10px 12px' }}>Status</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedSites.map((site, index) => {
-                  const rank = (currentPage - 1) * pageSize + index + 1;
-                  const isHealthy = site.health >= 85;
-                  const isWarning = site.health >= 60 && site.health < 85;
-
-                  return (
-                    <tr
-                      key={site.id}
-                      onClick={() => handleSiteClick(site)}
-                      className="clickable-row"
-                      style={{
-                        borderBottom: '1px solid var(--glass-border)',
-                        backgroundColor: index % 2 === 0 ? 'var(--table-even-bg)' : 'var(--table-odd-bg)',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                    >
-                      <td style={{ padding: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                        #{rank}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                          {site.name}
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>
-                        {site.group}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span
-                            style={{
-                              fontWeight: 800,
-                              fontFamily: 'monospace',
-                              color: isHealthy ? '#00C853' : isWarning ? '#FF9100' : '#EF4444',
-                              minWidth: '42px',
-                            }}
-                          >
-                            {site.health}%
-                          </span>
-                          <div
-                            style={{
-                              width: '60px',
-                              height: '6px',
-                              borderRadius: '999px',
-                              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: `${Math.min(100, site.health)}%`,
-                                height: '100%',
-                                backgroundColor: isHealthy ? '#00C853' : isWarning ? '#FF9100' : '#EF4444',
-                                borderRadius: '999px',
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            fontSize: '0.6875rem',
-                            fontWeight: 700,
-                            backgroundColor: site.tat >= 95 ? 'rgba(0, 200, 83, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                            color: site.tat >= 95 ? '#00E676' : '#EF4444',
-                            border: `1px solid ${site.tat >= 95 ? 'rgba(0, 200, 83, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-                          }}
-                        >
-                          {site.tat}%
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            fontSize: '0.6875rem',
-                            fontWeight: 700,
-                            backgroundColor: site.ppm >= 90 ? 'rgba(0, 200, 83, 0.15)' : 'rgba(255, 145, 0, 0.15)',
-                            color: site.ppm >= 90 ? '#00E676' : '#FF9100',
-                            border: `1px solid ${site.ppm >= 90 ? 'rgba(0, 200, 83, 0.3)' : 'rgba(255, 145, 0, 0.3)'}`,
-                          }}
-                        >
-                          {site.ppm}%
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', fontWeight: 600 }}>
-                        {site.assets.toLocaleString()}
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ color: site.tickets > 0 ? '#FF7A45' : 'var(--text-muted)', fontWeight: 600 }}>
-                          {site.tickets} open
-                        </span>
-                        <span style={{ color: 'var(--text-muted)', margin: '0 4px' }}>/</span>
-                        <span style={{ color: '#00C853', fontWeight: 600 }}>
-                          {site.closed} closed
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            padding: '3px 8px',
-                            borderRadius: '999px',
-                            fontSize: '0.6875rem',
-                            fontWeight: 700,
-                            backgroundColor: isHealthy ? 'rgba(0, 200, 83, 0.12)' : 'rgba(255, 91, 34, 0.12)',
-                            color: isHealthy ? '#00E676' : '#FF7A45',
-                            border: `1px solid ${isHealthy ? 'rgba(0, 200, 83, 0.35)' : 'rgba(255, 91, 34, 0.35)'}`,
-                          }}
-                        >
-                          <span
-                            className="pulse-dot"
-                            style={{
-                              width: '5px',
-                              height: '5px',
-                              backgroundColor: isHealthy ? '#00E676' : '#FF5B22',
-                            }}
-                          />
-                          <span>{site.status}</span>
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSiteClick(site);
-                          }}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            fontSize: '0.6875rem',
-                            fontWeight: 700,
-                            backgroundColor: 'rgba(0, 200, 83, 0.12)',
-                            color: '#00E676',
-                            border: '1px solid rgba(0, 200, 83, 0.3)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <span>Inspect</span>
-                          <ExternalLink size={11} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {/* Pagination bar */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: '16px',
-                marginTop: '8px',
-                borderTop: '1px solid var(--glass-border)',
-                fontSize: '0.75rem',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <div>
-                Showing {(currentPage - 1) * pageSize + 1} to{' '}
-                {Math.min(currentPage * pageSize, filteredSites.length)} of {filteredSites.length} parks
+            <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-sm bg-healthy" />
+                <span className="text-xs text-muted-foreground">Healthy (≥85%)</span>
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  type="button"
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--glass-border)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                    color: currentPage <= 1 ? 'rgba(255, 255, 255, 0.2)' : 'var(--text-main)',
-                    cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  Previous
-                </button>
-                <span>
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--glass-border)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                    color: currentPage >= totalPages ? 'rgba(255, 255, 255, 0.2)' : 'var(--text-main)',
-                    cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  Next
-                </button>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-sm bg-warning" />
+                <span className="text-xs text-muted-foreground">Warning (70-84%)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-sm bg-critical" />
+                <span className="text-xs text-muted-foreground">Critical (&lt;70%)</span>
               </div>
             </div>
           </div>
@@ -776,4 +574,3 @@ export function SitePerformanceOverview() {
     </section>
   );
 }
-export default SitePerformanceOverview;
