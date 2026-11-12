@@ -31,10 +31,8 @@ export function GlobalFilterBar({ theme: externalTheme, onToggleTheme }: Props) 
   const { data: ppmData } = usePPMOperations(filters);
   const { data: workforceData } = useWorkforce(filters);
 
-  // Theme state
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('horizon_theme') as 'dark' | 'light') || 'dark';
-  });
+  // Theme state - always start in light mode on open
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
   const isLight = theme === 'light';
 

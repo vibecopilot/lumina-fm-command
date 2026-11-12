@@ -71,13 +71,13 @@ export default function UrlParamSync({ children }: Props) {
   // Wait until localStorage is set
   if (!ready) {
     return (
-      <div className="w-full h-screen flex flex-col items-center justify-center gap-4" style={{ backgroundColor: 'var(--bg-primary, #0B0F19)' }}>
+      <div className="w-full h-screen flex flex-col items-center justify-center gap-4" style={{ backgroundColor: 'var(--bg-primary, #f8fafc)' }}>
         <div className="wave-dots-container">
           <span className="wave-dot" style={{ width: '14px', height: '14px' }} />
           <span className="wave-dot" style={{ width: '14px', height: '14px' }} />
           <span className="wave-dot" style={{ width: '14px', height: '14px' }} />
         </div>
-        <div className="text-white/80 text-sm font-medium tracking-wide">
+        <div className="text-sm font-medium tracking-wide" style={{ color: 'var(--text-main, #0f172a)' }}>
           Syncing command center session...
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useAssetPortfolio } from '@/hooks/useGroupedDashboard';
+import { ThemeChartTooltip } from './DrillDownPanels';
 import {
   Wrench,
   ChevronRight,
@@ -36,6 +37,7 @@ import {
 
 type ChartType = 'Donut' | 'Pie' | 'Vertical Bar' | 'Horizontal Bar' | 'Line' | 'Area' | 'Radar';
 
+const CATEGORY_PALETTE = ['#00C853', '#3B82F6', '#FF9100', '#8B5CF6', '#EC4899', '#06B6D4', '#F59E0B', '#10B981'];
 const STATUS_CHART_TYPES: ChartType[] = ['Donut', 'Pie', 'Vertical Bar', 'Horizontal Bar'];
 const CATEGORY_CHART_TYPES: ChartType[] = ['Pie', 'Donut', 'Vertical Bar', 'Horizontal Bar', 'Radar', 'Line', 'Area'];
 
@@ -60,13 +62,15 @@ export function AssetPortfolioHealth() {
   const categories = useMemo(() => {
     const list = rawData?.category_breakdown || [];
 
-    return list.map((c) => ({
+    return [...list]
+      .map((c) => ({
       name: c.category || 'Equipment',
       total: Number(c.total || 0),
       operational: Number(c.operational || 0),
       score: Number(c.health_percentage ?? 100),
       color: Number(c.health_percentage ?? 100) >= 95 ? '#00E676' : '#FF9100',
-    }));
+    }))
+      .sort((a, b) => b.total - a.total);
   }, [rawData]);
 
   const displayedCategories = useMemo(() => {
@@ -311,24 +315,38 @@ export function AssetPortfolioHealth() {
           <div style={{ height: '220px', width: '100%', position: 'relative' }}>
             <ResponsiveContainer width="100%" height="100%">
               {statusChartType === 'Donut' || statusChartType === 'Pie' ? (
-                <PieChart>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#151D2C',
-                      borderColor: 'rgba(255,255,255,0.1)',
-                      borderRadius: '8px',
-                      color: '#FFF',
-                      fontSize: '0.75rem',
-                    }}
-                  />
+                <PieChart key={`status-${statusChartType}-${summary.total}`}>
+                  <Tooltip content={<ThemeChartTooltip />} />
                   <Pie
                     data={statusDistribution}
                     cx="50%"
                     cy="50%"
-                    innerRadius={statusChartType === 'Donut' ? 55 : 0}
-                    outerRadius={80}
+                    innerRadius={statusChartType === 'Donut' ? 42 : 0}
+                    outerRadius={66}
                     paddingAngle={3}
                     dataKey="value"
+                    isAnimationActive={false}
+                    labelLine={{ stroke: 'var(--text-muted)', strokeWidth: 1 }}
+                    label={({ cx, cy, midAngle, outerRadius, name, percent }) => {
+                      if (!percent || percent <= 0.002) return null;
+                      const RADIAN = Math.PI / 180;
+                      const radius = outerRadius + 15;
+                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                      return (
+                        <text
+                          x={x}
+                          y={y}
+                          fill="var(--text-main)"
+                          textAnchor={x > cx ? 'start' : 'end'}
+                          dominantBaseline="central"
+                          fontSize={10}
+                          fontWeight={700}
+                        >
+                          {`${name} (${(percent * 100).toFixed(1)}%)`}
+                        </text>
+                      );
+                    }}
                   >
                     {statusDistribution.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -340,15 +358,7 @@ export function AssetPortfolioHealth() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                   <XAxis type="number" stroke="#94A3B8" fontSize={11} />
                   <YAxis type="category" dataKey="name" stroke="#94A3B8" fontSize={11} width={80} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#151D2C',
-                      borderColor: 'rgba(255,255,255,0.1)',
-                      borderRadius: '8px',
-                      color: '#FFF',
-                      fontSize: '0.75rem',
-                    }}
-                  />
+                  <Tooltip content={<ThemeChartTooltip />} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                     {statusDistribution.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -360,15 +370,7 @@ export function AssetPortfolioHealth() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                   <XAxis dataKey="name" stroke="#94A3B8" fontSize={11} />
                   <YAxis stroke="#94A3B8" fontSize={11} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#151D2C',
-                      borderColor: 'rgba(255,255,255,0.1)',
-                      borderRadius: '8px',
-                      color: '#FFF',
-                      fontSize: '0.75rem',
-                    }}
-                  />
+                  <Tooltip content={<ThemeChartTooltip />} />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                     {statusDistribution.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -505,34 +507,61 @@ export function AssetPortfolioHealth() {
               </div>
 
               {/* Top N selector */}
-              <button
-                type="button"
-                onClick={() => setCategoryTopN(categoryTopN === 'Top 5' ? 'All' : 'Top 5')}
+              <div
                 style={{
-                  padding: '3px 8px',
-                  fontSize: '0.625rem',
-                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '2px',
                   borderRadius: '6px',
+                  backgroundColor: 'rgba(148, 163, 184, 0.12)',
                   border: '1px solid var(--glass-border)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#00E676',
-                  cursor: 'pointer',
                 }}
               >
-                {categoryTopN}
-              </button>
+                {(['Top 5', 'All'] as const).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setCategoryTopN(opt)}
+                    style={{
+                      padding: '3px 7px',
+                      fontSize: '0.625rem',
+                      fontWeight: categoryTopN === opt ? 700 : 500,
+                      borderRadius: '4px',
+                      border: 'none',
+                      backgroundColor: categoryTopN === opt ? '#00C853' : 'transparent',
+                      color: categoryTopN === opt ? '#0B0F19' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {opt === 'All' ? `All (${categories.length})` : 'Top 5'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Chart Content */}
-          <div style={{ height: '220px', width: '100%' }}>
-            {categoryChartType === 'Horizontal Bar' ? (
+          <div style={{ height: '220px', width: '100%', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+            {displayedCategories.length === 0 ? (
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+                No category data available
+              </div>
+            ) : categoryChartType === 'Horizontal Bar' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '220px' }}>
                 {displayedCategories.map((c) => (
-                  <div key={c.name} onClick={() => handleDrill(undefined, c.name)} title={`Click to drill down ${c.name} assets`} style={{ display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer' }} className="hover:opacity-80 transition-opacity">
+                  <div
+                    key={c.name}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDrill(undefined, c.name);
+                    }}
+                    title={`Click to drill down ${c.name} assets`}
+                    style={{ display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer' }}
+                    className="hover:opacity-80 transition-opacity"
+                  >
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
                       <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{c.name}</span>
-                      <span style={{ fontWeight: 700, color: '#00E676' }}>
+                      <span style={{ fontWeight: 700, color: '#00C853' }}>
                         {c.operational}/{c.total} ({c.score}%)
                       </span>
                     </div>
@@ -541,7 +570,7 @@ export function AssetPortfolioHealth() {
                         height: '6px',
                         width: '100%',
                         borderRadius: '999px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        backgroundColor: 'var(--border-color, rgba(148, 163, 184, 0.25))',
                         overflow: 'hidden',
                       }}
                     >
@@ -549,7 +578,7 @@ export function AssetPortfolioHealth() {
                         style={{
                           height: '100%',
                           width: `${c.score}%`,
-                          backgroundColor: '#00E676',
+                          backgroundColor: '#00C853',
                           borderRadius: '999px',
                         }}
                       />
@@ -557,41 +586,190 @@ export function AssetPortfolioHealth() {
                   </div>
                 ))}
               </div>
+            ) : categoryChartType === 'Pie' || categoryChartType === 'Donut' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '8px', height: '220px', alignItems: 'center' }}>
+                <div style={{ height: '220px', width: '100%', position: 'relative' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart key={`cat-${categoryChartType}-${categoryTopN}-${displayedCategories.length}`}>
+                      <Tooltip content={<ThemeChartTooltip />} />
+                      <Pie
+                        data={displayedCategories}
+                        dataKey="total"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={categoryChartType === 'Donut' ? 40 : 0}
+                        outerRadius={66}
+                        paddingAngle={2}
+                        isAnimationActive={false}
+                        cursor="pointer"
+                        labelLine={{ stroke: 'var(--text-muted)', strokeWidth: 1 }}
+                        label={({ cx, cy, midAngle, outerRadius, percent }) => {
+                          if (!percent || percent < 0.04) return null;
+                          const RADIAN = Math.PI / 180;
+                          const radius = outerRadius + 12;
+                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                          return (
+                            <text
+                              x={x}
+                              y={y}
+                              fill="var(--text-main)"
+                              textAnchor={x > cx ? 'start' : 'end'}
+                              dominantBaseline="central"
+                              fontSize={10}
+                              fontWeight={700}
+                            >
+                              {`${(percent * 100).toFixed(0)}%`}
+                            </text>
+                          );
+                        }}
+                        onClick={(d: any) => {
+                          const cat = d?.name || d?.payload?.name;
+                          if (cat) handleDrill(undefined, cat);
+                        }}
+                      >
+                        {displayedCategories.map((_, idx) => (
+                          <Cell key={`cat-pie-${idx}`} fill={CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length]} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {categoryChartType === 'Donut' && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <span style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                        {displayedCategories.reduce((acc, c) => acc + c.total, 0)}
+                      </span>
+                      <span style={{ fontSize: '0.5625rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                        Units
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Category Legend with Name, Count & Share % */}
+                <div style={{ maxHeight: '215px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '5px', paddingRight: '2px' }}>
+                  {(() => {
+                    const totalSum = displayedCategories.reduce((acc, c) => acc + c.total, 0);
+                    return displayedCategories.map((c, idx) => {
+                      const share = totalSum > 0 ? ((c.total / totalSum) * 100).toFixed(1) : '0.0';
+                      const dotColor = CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length];
+                      return (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => handleDrill(undefined, c.name)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '6px',
+                            padding: '5px 7px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--glass-border)',
+                            backgroundColor: 'var(--table-even-bg)',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            width: '100%',
+                          }}
+                          title={`${c.name}: ${c.total} units (${share}%)`}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: dotColor, flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {c.name}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--text-muted)', flexShrink: 0, fontFamily: 'monospace' }}>
+                            {c.total} ({share}%)
+                          </span>
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            ) : categoryChartType === 'Line' ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart key={`cat-line-${categoryTopN}-${displayedCategories.length}`} data={displayedCategories} margin={{ top: 10, right: 15, left: -15, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
+                  <YAxis stroke="var(--text-muted)" fontSize={10} allowDecimals={false} />
+                  <Tooltip content={<ThemeChartTooltip />} />
+                  <Line type="monotone" dataKey="total" name="Total Units" stroke="#3B82F6" strokeWidth={2.2} dot={{ r: 3.5 }} />
+                  <Line type="monotone" dataKey="operational" name="Operational" stroke="#00C853" strokeWidth={2.2} dot={{ r: 3.5 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : categoryChartType === 'Area' ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart key={`cat-area-${categoryTopN}-${displayedCategories.length}`} data={displayedCategories} margin={{ top: 10, right: 15, left: -15, bottom: 10 }}>
+                  <defs>
+                    <linearGradient id="assetCatTotalGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="assetCatOpGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00C853" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#00C853" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
+                  <YAxis stroke="var(--text-muted)" fontSize={10} allowDecimals={false} />
+                  <Tooltip content={<ThemeChartTooltip />} />
+                  <Area type="monotone" dataKey="total" name="Total Units" stroke="#3B82F6" strokeWidth={2} fill="url(#assetCatTotalGrad)" />
+                  <Area type="monotone" dataKey="operational" name="Operational" stroke="#00C853" strokeWidth={2} fill="url(#assetCatOpGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
             ) : categoryChartType === 'Radar' ? (
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={displayedCategories}>
-                  <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                  <PolarAngleAxis dataKey="name" stroke="#94A3B8" fontSize={10} />
-                  <PolarRadiusAxis stroke="#94A3B8" fontSize={9} />
-                  <Radar name="Health" dataKey="score" stroke="#00E676" fill="#00E676" fillOpacity={0.3} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#151D2C',
-                      borderColor: 'rgba(255,255,255,0.1)',
-                      borderRadius: '8px',
-                      color: '#FFF',
-                      fontSize: '0.75rem',
-                    }}
-                  />
+                <RadarChart key={`cat-radar-${categoryTopN}-${displayedCategories.length}`} data={displayedCategories}>
+                  <PolarGrid stroke="var(--border-color)" />
+                  <PolarAngleAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
+                  <PolarRadiusAxis stroke="var(--text-muted)" fontSize={9} />
+                  <Radar name="Health" dataKey="score" stroke="#00C853" fill="#00C853" fillOpacity={0.3} />
+                  <Tooltip content={<ThemeChartTooltip />} />
                 </RadarChart>
               </ResponsiveContainer>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={displayedCategories}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="name" stroke="#94A3B8" fontSize={10} />
-                  <YAxis stroke="#94A3B8" fontSize={10} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#151D2C',
-                      borderColor: 'rgba(255,255,255,0.1)',
-                      borderRadius: '8px',
-                      color: '#FFF',
-                      fontSize: '0.75rem',
+                <BarChart key={`cat-bar-${categoryTopN}-${displayedCategories.length}`} data={displayedCategories}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} />
+                  <YAxis stroke="var(--text-muted)" fontSize={10} allowDecimals={false} />
+                  <Tooltip content={<ThemeChartTooltip />} />
+                  <Bar
+                    dataKey="total"
+                    fill="#3B82F6"
+                    name="Total Units"
+                    radius={[4, 4, 0, 0]}
+                    cursor="pointer"
+                    onClick={(d: any) => {
+                      const cat = d?.name || d?.payload?.name;
+                      if (cat) handleDrill(undefined, cat);
                     }}
                   />
-                  <Bar dataKey="total" fill="#3B82F6" name="Total Units" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(d: any) => { const cat = d?.name || d?.payload?.name; if (cat) handleDrill(undefined, cat); }} />
-                  <Bar dataKey="operational" fill="#00E676" name="Operational" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(d: any) => { const cat = d?.name || d?.payload?.name; if (cat) handleDrill(undefined, cat); }} />
+                  <Bar
+                    dataKey="operational"
+                    fill="#00C853"
+                    name="Operational"
+                    radius={[4, 4, 0, 0]}
+                    cursor="pointer"
+                    onClick={(d: any) => {
+                      const cat = d?.name || d?.payload?.name;
+                      if (cat) handleDrill(undefined, cat);
+                    }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             )}

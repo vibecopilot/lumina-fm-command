@@ -13,6 +13,28 @@ import {
   Table as TableIcon,
   Flame,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Cell,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  PieChart,
+  Pie,
+} from 'recharts';
+import { ThemeChartTooltip } from './DrillDownPanels';
 
 type MetricMode = 'health' | 'tat' | 'ppm' | 'workforce';
 type ViewMode = 'table' | 'chart' | 'heatmap';
@@ -31,6 +53,15 @@ const CHART_TYPES: ChartType[] = [
   'Line',
   'Area',
   'Radar',
+  'Pie',
+  'Donut',
+];
+
+const SITE_PALETTE = [
+  '#00C853', '#3B82F6', '#FF5B22', '#8B5CF6', '#F59E0B',
+  '#06B6D4', '#EC4899', '#10B981', '#6366F1', '#EAB308',
+  '#14B8A6', '#F97316', '#A855F7', '#EF4444', '#22C55E',
+  '#0EA5E9', '#D946EF', '#84CC16', '#F43F5E', '#64748B', '#FB923C',
 ];
 
 export function SitePerformanceOverview() {
@@ -151,6 +182,42 @@ export function SitePerformanceOverview() {
   };
 
   const activeMetricColor = METRIC_TABS.find((m) => m.id === metricMode)?.color || '#00C853';
+  const activeMetricLabel = METRIC_TABS.find((m) => m.id === metricMode)?.label || 'Score';
+
+  const visualizerData = useMemo(() => {
+    const mapped = filteredSites.map((site) => {
+      const val =
+        metricMode === 'health'
+          ? site.health
+          : metricMode === 'tat'
+          ? site.tat
+          : metricMode === 'ppm'
+          ? site.ppm
+          : site.workforce;
+      const color = val >= 85 ? '#00C853' : val >= 60 ? '#FF9100' : '#EF4444';
+      return {
+        ...site,
+        shortName: site.name.length > 14 ? `${site.name.slice(0, 13)}…` : site.name,
+        value: Number(val.toFixed(1)),
+        color,
+      };
+    });
+
+    const sorted = [...mapped].sort((a, b) => b.value - a.value || a.name.localeCompare(b.name));
+    const sliced = topN === 'Top 5' ? sorted.slice(0, 5) : topN === 'Top 10' ? sorted.slice(0, 10) : sorted;
+
+    return sliced.map((item, idx) => ({
+      ...item,
+      sliceColor: SITE_PALETTE[idx % SITE_PALETTE.length],
+    }));
+  }, [filteredSites, metricMode, topN]);
+
+  const nonZeroPieData = useMemo(() => visualizerData.filter((d) => d.value > 0), [visualizerData]);
+
+  const avgMetricValue = useMemo(() => {
+    if (visualizerData.length === 0) return 0;
+    return visualizerData.reduce((acc, d) => acc + d.value, 0) / visualizerData.length;
+  }, [visualizerData]);
 
   return (
     <section style={{ marginBottom: '32px' }} className="animate-fade-in stagger-2">
@@ -407,78 +474,347 @@ export function SitePerformanceOverview() {
               </div>
             </div>
 
-            {/* Horizontal Bar Chart representation matching reference chart-viewport */}
-            <div className="chart-viewport" style={{ maxHeight: '420px', overflowY: 'auto' }}>
-              <div className="chart-list">
-                {chartData.map((site) => {
-                  const val =
-                    metricMode === 'health'
-                      ? site.health
-                      : metricMode === 'tat'
-                      ? site.tat
-                      : metricMode === 'ppm'
-                      ? site.ppm
-                      : site.workforce;
+            {/* Interactive Visualizer Charts */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <span>
+                Showing <strong style={{ color: 'var(--text-main)' }}>{visualizerData.length}</strong> of{' '}
+                <strong style={{ color: 'var(--text-main)' }}>{filteredSites.length}</strong> Parks · Sorted by{' '}
+                <strong style={{ color: activeMetricColor }}>{activeMetricLabel}</strong>
+              </span>
+              <span>Click any bar, slice, or park to inspect drill-down</span>
+            </div>
 
-                  const color = val >= 85 ? '#00C853' : val >= 60 ? '#FF9100' : '#EF4444';
-
-                  return (
-                    <div
-                      key={site.id}
-                      onClick={() => handleSiteClick(site)}
-                      className="chart-row clickable-row"
-                      style={{
-                        backgroundColor: 'var(--table-even-bg)',
-                        border: '1px solid var(--glass-border)',
-                      }}
-                      title={`Click to open ${site.name} performance drilldown`}
+            <div style={{ width: '100%', minHeight: '360px' }}>
+              {visualizerData.length === 0 ? (
+                <div style={{ height: '340px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                  No sites match your filter criteria
+                </div>
+              ) : chartType === 'Horizontal Bar' ? (
+                <div style={{ maxHeight: '460px', overflowY: 'auto', paddingRight: '6px' }}>
+                  <div style={{ height: Math.max(280, visualizerData.length * 38), width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        key={`hbar-${metricMode}-${topN}-${visualizerData.length}`}
+                        data={visualizerData}
+                        layout="vertical"
+                        margin={{ top: 8, right: 32, left: 12, bottom: 8 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" />
+                        <XAxis type="number" domain={[0, 100]} unit="%" fontSize={11} stroke="var(--text-muted)" />
+                        <YAxis type="category" dataKey="shortName" fontSize={11} stroke="var(--text-muted)" width={140} />
+                        <Tooltip content={<ThemeChartTooltip />} />
+                        <Bar
+                          dataKey="value"
+                          name={activeMetricLabel}
+                          radius={[0, 5, 5, 0]}
+                          barSize={20}
+                          isAnimationActive={false}
+                          cursor="pointer"
+                          onClick={(d: any) => {
+                            const s = d?.payload || d;
+                            if (s?.id) handleSiteClick(s);
+                          }}
+                        >
+                          {visualizerData.map((entry, idx) => (
+                            <Cell key={`site-hbar-${idx}`} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              ) : chartType === 'Vertical Bar' ? (
+                <div style={{ height: '380px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      key={`vbar-${metricMode}-${topN}-${visualizerData.length}`}
+                      data={visualizerData}
+                      margin={{ top: 12, right: 16, left: -10, bottom: 55 }}
                     >
-                      <div className="chart-row-header">
-                        <div className="chart-category">
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
+                      <XAxis dataKey="shortName" fontSize={10} stroke="var(--text-muted)" angle={-32} textAnchor="end" interval={0} height={68} />
+                      <YAxis domain={[0, 100]} unit="%" fontSize={11} stroke="var(--text-muted)" />
+                      <Tooltip content={<ThemeChartTooltip />} />
+                      <Bar
+                        dataKey="value"
+                        name={activeMetricLabel}
+                        radius={[5, 5, 0, 0]}
+                        barSize={topN === 'Top 5' ? 38 : topN === 'Top 10' ? 28 : 20}
+                        isAnimationActive={false}
+                        cursor="pointer"
+                        onClick={(d: any) => {
+                          const s = d?.payload || d;
+                          if (s?.id) handleSiteClick(s);
+                        }}
+                      >
+                        {visualizerData.map((entry, idx) => (
+                          <Cell key={`site-vbar-${idx}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : chartType === 'Line' ? (
+                <div style={{ height: '380px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      key={`line-${metricMode}-${topN}-${visualizerData.length}`}
+                      data={visualizerData}
+                      margin={{ top: 12, right: 20, left: -10, bottom: 55 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                      <XAxis dataKey="shortName" fontSize={10} stroke="var(--text-muted)" angle={-32} textAnchor="end" interval={0} height={68} />
+                      <YAxis domain={[0, 100]} unit="%" fontSize={11} stroke="var(--text-muted)" />
+                      <Tooltip content={<ThemeChartTooltip />} />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        name={activeMetricLabel}
+                        stroke={activeMetricColor}
+                        strokeWidth={2.5}
+                        isAnimationActive={false}
+                        dot={{ r: 4, fill: activeMetricColor, strokeWidth: 1.5 }}
+                        activeDot={{
+                          r: 6,
+                          cursor: 'pointer',
+                          onClick: (_e: any, payload: any) => {
+                            const s = payload?.payload;
+                            if (s?.id) handleSiteClick(s);
+                          },
+                        }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : chartType === 'Area' ? (
+                <div style={{ height: '380px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      key={`area-${metricMode}-${topN}-${visualizerData.length}`}
+                      data={visualizerData}
+                      margin={{ top: 12, right: 20, left: -10, bottom: 55 }}
+                    >
+                      <defs>
+                        <linearGradient id="siteMetricAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={activeMetricColor} stopOpacity={0.4} />
+                          <stop offset="95%" stopColor={activeMetricColor} stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                      <XAxis dataKey="shortName" fontSize={10} stroke="var(--text-muted)" angle={-32} textAnchor="end" interval={0} height={68} />
+                      <YAxis domain={[0, 100]} unit="%" fontSize={11} stroke="var(--text-muted)" />
+                      <Tooltip content={<ThemeChartTooltip />} />
+                      <Area
+                        type="monotone"
+                        dataKey="value"
+                        name={activeMetricLabel}
+                        stroke={activeMetricColor}
+                        strokeWidth={2.5}
+                        fill="url(#siteMetricAreaGrad)"
+                        isAnimationActive={false}
+                        activeDot={{
+                          r: 6,
+                          cursor: 'pointer',
+                          onClick: (_e: any, payload: any) => {
+                            const s = payload?.payload;
+                            if (s?.id) handleSiteClick(s);
+                          },
+                        }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : chartType === 'Pie' || chartType === 'Donut' ? (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '20px',
+                    alignItems: 'center',
+                    minHeight: '360px',
+                  }}
+                >
+                  {/* Pie / Donut Chart with Slice Labels */}
+                  <div style={{ height: '360px', width: '100%', position: 'relative' }}>
+                    {nonZeroPieData.length === 0 ? (
+                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px' }}>
+                        <div style={{ width: '130px', height: '130px', borderRadius: '50%', border: '8px dashed var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                          0%
+                        </div>
+                        <span style={{ fontSize: '0.8125rem' }}>
+                          All {visualizerData.length} displayed parks have 0% {activeMetricLabel}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart key={`${chartType}-${metricMode}-${topN}-${nonZeroPieData.length}`}>
+                            <Tooltip content={<ThemeChartTooltip />} />
+                            <Pie
+                              data={nonZeroPieData}
+                              dataKey="value"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={chartType === 'Donut' ? 68 : 0}
+                              outerRadius={112}
+                              paddingAngle={2}
+                              isAnimationActive={false}
+                              cursor="pointer"
+                              labelLine={{ stroke: 'var(--text-muted)', strokeWidth: 1 }}
+                              label={({ cx, cy, midAngle, outerRadius, shortName, value }) => {
+                                const RADIAN = Math.PI / 180;
+                                const radius = outerRadius + 16;
+                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                return (
+                                  <text
+                                    x={x}
+                                    y={y}
+                                    fill="var(--text-main)"
+                                    textAnchor={x > cx ? 'start' : 'end'}
+                                    dominantBaseline="central"
+                                    fontSize={10}
+                                    fontWeight={700}
+                                  >
+                                    {nonZeroPieData.length <= 10 ? `${shortName} (${value}%)` : `${value}%`}
+                                  </text>
+                                );
+                              }}
+                              onClick={(d: any) => {
+                                const s = d?.payload || d;
+                                if (s?.id) handleSiteClick(s);
+                              }}
+                            >
+                              {nonZeroPieData.map((entry, idx) => (
+                                <Cell key={`site-pie-${idx}`} fill={entry.sliceColor} />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                        {chartType === 'Donut' && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              pointerEvents: 'none',
+                            }}
+                          >
+                            <span style={{ fontSize: '1.35rem', fontWeight: 900, color: 'var(--text-main)', lineHeight: 1 }}>
+                              {avgMetricValue.toFixed(1)}%
+                            </span>
+                            <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px' }}>
+                              Avg ({visualizerData.length} Parks)
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Interactive Park Legend (shows ALL Top 5 / Top 10 / All parks with exact % & colors) */}
+                  <div
+                    style={{
+                      maxHeight: '340px',
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      padding: '12px',
+                      borderRadius: '12px',
+                      backgroundColor: 'var(--table-even-bg)',
+                      border: '1px solid var(--glass-border)',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      {topN} Breakdown ({visualizerData.length} Parks)
+                    </div>
+                    {visualizerData.map((site, idx) => (
+                      <button
+                        key={site.id}
+                        type="button"
+                        onClick={() => handleSiteClick(site)}
+                        className="clickable-row"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          padding: '7px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--glass-border)',
+                          backgroundColor: 'transparent',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          width: '100%',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 700, width: '20px' }}>
+                            #{idx + 1}
+                          </span>
                           <span
                             style={{
-                              width: '8px',
-                              height: '8px',
+                              width: '10px',
+                              height: '10px',
                               borderRadius: '50%',
-                              backgroundColor: color,
+                              backgroundColor: site.value > 0 ? site.sliceColor : 'var(--border-color)',
                               flexShrink: 0,
                             }}
                           />
-                          <span style={{ color: 'var(--text-main)', fontSize: '0.8125rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {site.name}
                           </span>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
-                            ({site.group})
-                          </span>
                         </div>
-                        <div className="chart-value" style={{ color }}>
-                          {val}%
-                        </div>
-                        <div
-                          className="chart-percentage"
+                        <span
                           style={{
-                            backgroundColor: `${color}22`,
-                            color,
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            fontFamily: 'monospace',
+                            color: site.color,
+                            flexShrink: 0,
                           }}
                         >
-                          {val >= 85 ? 'Healthy' : val >= 60 ? 'Warning' : 'Critical'}
-                        </div>
-                      </div>
-
-                      <div className="progress-track" style={{ backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
-                        <div
-                          className="progress-fill"
-                          style={{
-                            width: `${Math.min(100, val)}%`,
-                            backgroundColor: color,
-                            boxShadow: `0 0 8px ${color}88`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                          {site.value}%
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ height: '400px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart
+                      key={`radar-${metricMode}-${topN}-${visualizerData.length}`}
+                      data={visualizerData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={visualizerData.length > 10 ? 118 : 135}
+                    >
+                      <PolarGrid stroke="var(--border-color)" />
+                      <PolarAngleAxis
+                        dataKey="shortName"
+                        fontSize={visualizerData.length > 10 ? 9 : 11}
+                        stroke="var(--text-muted)"
+                      />
+                      <PolarRadiusAxis domain={[0, 100]} fontSize={9} stroke="var(--text-muted)" />
+                      <Radar
+                        name={activeMetricLabel}
+                        dataKey="value"
+                        stroke={activeMetricColor}
+                        fill={activeMetricColor}
+                        fillOpacity={0.35}
+                        isAnimationActive={false}
+                      />
+                      <Tooltip content={<ThemeChartTooltip />} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -744,7 +1080,7 @@ export function SitePerformanceOverview() {
                     borderRadius: '6px',
                     border: '1px solid var(--glass-border)',
                     backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                    color: currentPage <= 1 ? 'rgba(255, 255, 255, 0.2)' : 'var(--text-main)',
+                    color: currentPage <= 1 ? 'var(--text-muted)' : 'var(--text-main)', opacity: currentPage <= 1 ? 0.45 : 1,
                     cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
                   }}
                 >
@@ -762,7 +1098,7 @@ export function SitePerformanceOverview() {
                     borderRadius: '6px',
                     border: '1px solid var(--glass-border)',
                     backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                    color: currentPage >= totalPages ? 'rgba(255, 255, 255, 0.2)' : 'var(--text-main)',
+                    color: currentPage >= totalPages ? 'var(--text-muted)' : 'var(--text-main)', opacity: currentPage >= totalPages ? 0.45 : 1,
                     cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
                   }}
                 >
