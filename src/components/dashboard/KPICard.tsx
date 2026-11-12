@@ -1,323 +1,168 @@
-import React from 'react';
-import { LucideIcon, ChevronRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-
-interface Submetric {
-  label: string;
-  value: string | number;
-  color?: string;
-}
+import { cn } from '@/lib/utils';
+import { TrendingUp, TrendingDown, Minus, ChevronRight } from 'lucide-react';
+import { useDashboard } from '@/contexts/DashboardContext';
 
 interface KPICardProps {
   title: string;
   value: number | string;
   unit?: string;
-  decimals?: number;
   trend?: number;
-  trendType?: 'up' | 'down' | 'neutral';
-  trendText?: string;
-  submetrics?: Submetric[];
-  sparkline?: number[];
-  accentColor?: string;
-  icon?: LucideIcon;
-  triggerKey?: number;
-  isActive?: boolean;
+  trendDirection?: 'up' | 'down' | 'neutral';
+  trendLabel?: string;
+  status?: 'healthy' | 'warning' | 'critical';
   onClick?: () => void;
+  drillDownType?: string;
+  className?: string;
+  subtitle?: string;
+  breakdown?: { label: string; value: number; status?: 'healthy' | 'warning' | 'critical' | 'neutral' }[];
 }
 
 export function KPICard({
   title,
   value,
-  unit = '',
-  decimals = 0,
+  unit = '%',
   trend,
-  trendType = 'neutral',
-  trendText,
-  submetrics = [],
-  sparkline = [],
-  accentColor = '#00C853',
-  icon: Icon,
-  triggerKey = 0,
-  isActive = false,
+  trendDirection = 'neutral',
+  trendLabel,
+  status,
   onClick,
+  className,
+  subtitle,
+  breakdown,
 }: KPICardProps) {
-  const numValue = typeof value === 'number' ? value : parseFloat(value as string) || 0;
-  const formattedValue = decimals > 0 ? numValue.toFixed(decimals) : Math.round(numValue).toLocaleString();
+  const { currentRole } = useDashboard();
 
-  const isResolution = title.toLowerCase().includes('resolution');
+  const getStatusColor = () => {
+    if (!status) {
+      const numValue = typeof value === 'number' ? value : parseFloat(value as string);
+      if (numValue >= 85) return 'healthy';
+      if (numValue >= 70) return 'warning';
+      return 'critical';
+    }
+    return status;
+  };
 
-  // Sparkline calculation
-  const sparklineData = React.useMemo(() => {
-    if (!sparkline || sparkline.length < 2) return null;
-    const min = Math.min(...sparkline);
-    const max = Math.max(...sparkline);
-    const range = max - min || 1;
-    const pts = sparkline.map((val, idx) => ({
-      x: (idx / (sparkline.length - 1)) * 88,
-      y: 24 - ((val - min) / range) * 18 - 3,
-      val,
-    }));
-    const linePoints = pts.map(p => `${p.x},${p.y}`).join(' ');
-    const lastPoint = pts[pts.length - 1];
-    const polyPoints = `0,24 ${linePoints} 88,24`;
-    return { linePoints, lastPoint, polyPoints };
-  }, [sparkline]);
+  const statusColor = getStatusColor();
 
-  const sparkGradId = `spark-grad-${accentColor.replace('#', '')}`;
+  const getTrendIcon = () => {
+    if (trendDirection === 'up') {
+      return <TrendingUp className="h-3.5 w-3.5" />;
+    }
+    if (trendDirection === 'down') {
+      return <TrendingDown className="h-3.5 w-3.5" />;
+    }
+    return <Minus className="h-3.5 w-3.5" />;
+  };
+
+  const getTrendColor = () => {
+    // For resolution time, down is good
+    if (title.toLowerCase().includes('resolution')) {
+      return trendDirection === 'down' ? 'text-healthy' : trendDirection === 'up' ? 'text-critical' : 'text-muted-foreground';
+    }
+    return trendDirection === 'up' ? 'text-healthy' : trendDirection === 'down' ? 'text-critical' : 'text-muted-foreground';
+  };
+
+  const getBreakdownDotColor = (breakdownStatus?: 'healthy' | 'warning' | 'critical') => {
+    if (breakdownStatus === 'healthy') return 'bg-healthy';
+    if (breakdownStatus === 'warning') return 'bg-warning';
+    if (breakdownStatus === 'critical') return 'bg-critical';
+    return 'bg-muted-foreground';
+  };
 
   return (
     <div
-      onClick={onClick}
-      className={`glass-card glass-card-lift ${isActive ? 'kpi-card-active' : ''}`}
+      className={cn(
+        'kpi-card border border-white/20 rounded-lg p-4 cursor-pointer group',
+        'hover:shadow-lg transition-all duration-300',
+        className
+      )}
       style={{
-        padding: '16px 16px 14px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        cursor: onClick ? 'pointer' : 'default',
-        position: 'relative',
-        borderRadius: '16px',
-        border: isActive ? `1.5px solid ${accentColor}` : '1px solid var(--glass-border)',
-        boxShadow: isActive ? `0 10px 30px -4px ${accentColor}35, 0 0 15px -2px ${accentColor}25` : undefined,
-        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-        height: '100%',
+        background: 'linear-gradient(90deg, #8f53a1 0%, #f47920 100%)',
       }}
+      onClick={onClick}
     >
-      {/* Top accent bar */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: isActive ? '4px' : '3px',
-          background: `linear-gradient(90deg, ${accentColor} 0%, rgba(255,255,255,0) 100%)`,
-        }}
-      />
+      {/* Header */}
+      <div className="flex items-start justify-between mb-2">
+        <h3 className="text-xs font-medium text-white uppercase tracking-wider">
+          {title}
+        </h3>
 
-      <div>
-        {/* Header with Icon, Title, and Arrow */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '8px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-            {Icon && (
-              <div
-                style={{
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: '7px',
-                  backgroundColor: `${accentColor}1A`,
-                  border: `1px solid ${accentColor}33`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: accentColor,
-                  flexShrink: 0,
-                }}
-              >
-                <Icon size={14} strokeWidth={2.4} />
-              </div>
-            )}
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                letterSpacing: '0.01em',
-                color: 'var(--text-secondary)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-              title={title}
-            >
-              {title}
-            </span>
-          </div>
-
-          <ChevronRight size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-        </div>
-
-        {/* Big Metric Value */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: '4px',
-            margin: '6px 0 6px 0',
-          }}
-        >
-          <span
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: 900,
-              color: 'var(--text-main)',
-              letterSpacing: '-0.03em',
-              lineHeight: 1.1,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {formattedValue}
-          </span>
-          {unit && (
-            <span
-              style={{
-                fontSize: '0.9375rem',
-                fontWeight: 800,
-                color: 'var(--text-muted)',
-              }}
-            >
-              {unit}
-            </span>
-          )}
-        </div>
-
-        {/* Trend Indicator */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            marginBottom: '12px',
-          }}
-        >
-          {trendType === 'up' ? (
-            <TrendingUp size={13} color="#00C853" strokeWidth={2.5} />
-          ) : trendType === 'down' ? (
-            <TrendingDown
-              size={13}
-              color={isResolution ? '#00C853' : '#F87171'}
-              strokeWidth={2.5}
-            />
-          ) : (
-            <Minus size={13} color="var(--text-muted)" strokeWidth={2.5} />
-          )}
-
-          <span
-            style={{
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color:
-                trendType === 'up'
-                  ? '#00C853'
-                  : trendType === 'down'
-                  ? isResolution
-                    ? '#00C853'
-                    : '#F87171'
-                  : 'var(--text-muted)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {trendText || (trend != null ? `${trend > 0 ? '+' : ''}${trend}%` : 'On Target')}
-          </span>
-        </div>
+        <ChevronRight
+          className="h-4 w-4 text-white/70 group-hover:text-white transition-colors"
+        />
       </div>
 
-      {/* Sparkline & Submetrics Bottom Section */}
-      <div>
-        {sparklineData && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              marginBottom: '10px',
-              height: '22px',
-            }}
-          >
-            <svg width={88} height={24} style={{ overflow: 'visible' }}>
-              <defs>
-                <linearGradient id={sparkGradId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={accentColor} stopOpacity="0.32" />
-                  <stop offset="100%" stopColor={accentColor} stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-              <polygon fill={`url(#${sparkGradId})`} points={sparklineData.polyPoints} />
-              <polyline
-                fill="none"
-                stroke={accentColor}
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                points={sparklineData.linePoints}
-              />
-              <circle
-                cx={sparklineData.lastPoint.x}
-                cy={sparklineData.lastPoint.y}
-                r="3"
-                fill={accentColor}
-                stroke="var(--bg-primary)"
-                strokeWidth="1.5"
-              />
-            </svg>
-          </div>
+      {/* Value */}
+      <div className="flex items-baseline gap-1 mb-1">
+        <span
+          className="text-2xl font-bold text-white"
+        >
+          {value}
+        </span>
+
+        {unit && (
+          <span className="text-sm text-white/90">
+            {unit}
+          </span>
         )}
+      </div>
 
-        {submetrics && submetrics.length > 0 && (
-          <div
-            style={{
-              borderTop: '1px solid var(--glass-border)',
-              paddingTop: '8px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '5px',
-            }}
-          >
-            {submetrics.map((s, idx) => {
-              const dotColor =
-                s.color === 'success'
-                  ? '#00C853'
-                  : s.color === 'warning'
-                  ? '#FF9100'
-                  : s.color === 'danger'
-                  ? '#EF4444'
-                  : s.color === 'primary'
-                  ? '#00B0FF'
-                  : 'var(--text-muted)';
+      {/* Subtitle */}
+      {subtitle && (
+        <p className="text-xs text-white/80 mb-2">
+          {subtitle}
+        </p>
+      )}
 
-              return (
+      {/* Trend */}
+      {trend !== undefined && (
+        <div className="flex items-center gap-1 text-xs text-white">
+          {getTrendIcon()}
+
+          <span>
+            {Math.abs(trend)}%
+          </span>
+
+          {trendLabel && (
+            <span className="text-white/80 ml-1">
+              {trendLabel}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Breakdown */}
+      {breakdown && currentRole !== 'ops' && (
+        <div className="mt-3 pt-3 border-t border-white/30 space-y-1.5">
+          {breakdown.map((item, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between text-xs"
+            >
+              <div className="flex items-center gap-1.5">
                 <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: '0.6875rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span
-                      style={{
-                        width: '6px',
-                        height: '6px',
-                        borderRadius: '50%',
-                        backgroundColor: dotColor,
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
-                      {s.label}
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      fontWeight: 700,
-                      color: 'var(--text-main)',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
-                    {typeof s.value === 'number' ? s.value.toLocaleString() : s.value}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                  className={cn(
+                    'w-1.5 h-1.5 rounded-full',
+                    item.status === 'healthy' && 'bg-white',
+                    item.status === 'warning' && 'bg-yellow-200',
+                    item.status === 'critical' && 'bg-red-200',
+                    (!item.status || item.status === 'neutral') &&
+                    'bg-white/70'
+                  )}
+                />
+
+                <span className="text-white/90">
+                  {item.label}
+                </span>
+              </div>
+
+              <span className="font-medium text-white">
+                {item.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-export default KPICard;
