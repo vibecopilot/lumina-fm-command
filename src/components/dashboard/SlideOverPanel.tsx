@@ -15,7 +15,7 @@ import {
   VisitorsTodayPanel,
   AvgResolutionPanel,
 } from './KPIDetailPanels';
-import { AssetDrillPanel, WorkforceDrillPanel, PPMDrillPanel, VisitorDrillPanel } from './DrillDownPanels';
+import { AssetDrillPanel, WorkforceDrillPanel, PPMDrillPanel, VisitorDrillPanel, TicketDrillPanel } from './DrillDownPanels';
 import { SiteDrillPanel } from './SiteDrillPanel';
 
 function SiteDetailPanel({ site }: { site: Site }) {
@@ -114,7 +114,7 @@ function SiteDetailPanel({ site }: { site: Site }) {
             <span className="font-semibold">{siteAssets.filter(a => a.status === 'operational').length}</span>
           </div>
           <div className="flex items-center justify-between p-2 bg-warning-bg rounded-md">
-            <span>Maintenance</span>
+            <span>Breakdown</span>
             <span className="font-semibold">{siteAssets.filter(a => a.status === 'maintenance').length}</span>
           </div>
           <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
@@ -276,7 +276,7 @@ function AssetDetailPanel({ asset }: { asset: Asset }) {
             asset.status === 'maintenance' && 'status-warning',
             (asset.status === 'critical' || asset.status === 'offline') && 'status-critical',
           )}>
-            {asset.status}
+            {asset.status === 'maintenance' ? 'Breakdown' : asset.status}
           </Badge>
         </div>
       </div>
@@ -423,6 +423,8 @@ const KPI_TITLES: Record<string, string> = {
   drill_site: 'Site Details',
   drill_ppm: 'PPM Drill-down',
   drill_visitors: 'Visitor Details',
+  drill_ticket: 'Ticket Drill-down',
+  drill_soft_services: 'Soft Services',
 };
 
 const KPI_PANEL_COMPONENTS: Record<string, React.ComponentType> = {
@@ -438,6 +440,8 @@ const KPI_PANEL_COMPONENTS: Record<string, React.ComponentType> = {
   drill_site: SiteDrillPanel,
   drill_ppm: PPMDrillPanel,
   drill_visitors: VisitorDrillPanel,
+  drill_ticket: TicketDrillPanel,
+  drill_soft_services: PPMDrillPanel,
 };
 
 export function SlideOverPanel() {
@@ -445,25 +449,36 @@ export function SlideOverPanel() {
 
   if (!slideOver.isOpen) return null;
 
-  const isKpiPanel = slideOver.type?.startsWith('kpi_') || slideOver.type === 'drill_asset' || slideOver.type === 'drill_workforce' || slideOver.type === 'drill_site' || slideOver.type === 'drill_ppm' || slideOver.type === 'drill_visitors';
-  const isWidePanel = slideOver.type === 'drill_visitors';
-  const panelWidth = isKpiPanel
-    ? (isWidePanel ? 'w-full sm:w-[720px] sm:max-w-[95vw]' : 'w-full sm:w-[600px] sm:max-w-[95vw]')
-    : 'w-full sm:w-[480px] sm:max-w-[95vw]';
+  const isWidePanel =
+    slideOver.type?.startsWith('drill_') ||
+    slideOver.type === 'site' ||
+    slideOver.type === 'kpi_ticket_sla' ||
+    slideOver.type === 'kpi_ppm' ||
+    slideOver.type === 'kpi_asset' ||
+    slideOver.type === 'kpi_workforce';
+
+  const isPpmPanel = slideOver.type === 'kpi_ppm' || slideOver.type === 'drill_ppm' || slideOver.type === 'drill_soft_services';
+  const panelWidth = isPpmPanel
+    ? 'w-full sm:w-[960px] lg:w-[1040px] sm:max-w-[96vw]'
+    : isWidePanel
+    ? 'w-full sm:w-[760px] sm:max-w-[95vw]'
+    : 'w-full sm:w-[540px] sm:max-w-[95vw]';
 
   const renderContent = () => {
-    if (!slideOver.data && !isKpiPanel) {
-      return <div className="text-sm text-muted-foreground">No details available</div>;
+    if (slideOver.type && KPI_PANEL_COMPONENTS[slideOver.type]) {
+      const PanelComponent = KPI_PANEL_COMPONENTS[slideOver.type];
+      return <PanelComponent />;
     }
 
-    if ((isKpiPanel || slideOver.type === 'drill_asset' || slideOver.type === 'drill_workforce' || slideOver.type === 'drill_site' || slideOver.type === 'drill_ppm' || slideOver.type === 'drill_visitors') && slideOver.type) {
-      const PanelComponent = KPI_PANEL_COMPONENTS[slideOver.type];
-      if (PanelComponent) return <PanelComponent />;
+    if (slideOver.type === 'site') {
+      return <SiteDrillPanel />;
+    }
+
+    if (slideOver.type === 'asset' && !(slideOver.data as any)?.asset_number) {
+      return <AssetDrillPanel />;
     }
 
     switch (slideOver.type) {
-      case 'site':
-        return <SiteDetailPanel site={slideOver.data as Site} />;
       case 'ticket':
         return <TicketDetailPanel ticket={slideOver.data as Ticket} />;
       case 'asset':
@@ -495,25 +510,65 @@ export function SlideOverPanel() {
 
   return (
     <>
-      {/* Overlay */}
+      {/* Blurred Backdrop Overlay */}
       <div
-        className="fixed inset-0 bg-panel-overlay/20 z-50 animate-fade-in"
+        className="fixed inset-0 z-50 animate-fade-in"
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.45)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+        }}
         onClick={closeSlideOver}
       />
 
-      {/* Panel */}
-      <div className={`fixed right-0 top-0 h-full ${panelWidth} max-w-full bg-panel-bg border-l shadow-xl z-50 animate-slide-in-right overflow-hidden`}>
+      {/* Slide-over Drawer Panel */}
+      <div
+        className={`fixed right-0 top-0 h-full ${panelWidth} max-w-full z-50 animate-slide-in-right overflow-hidden`}
+        style={{
+          backgroundColor: 'var(--drawer-bg, #0b111e)',
+          color: 'var(--text-primary)',
+          borderLeft: '1px solid var(--border-color)',
+          boxShadow: 'var(--shadow-elevation, -8px 0 32px rgba(0, 0, 0, 0.4))',
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 bg-panel-header border-b">
-          <h2 className="text-sm font-semibold">{getTitle()}</h2>
-          <Button variant="ghost" size="icon" onClick={closeSlideOver} className="h-8 w-8">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--border-color)',
+            backgroundColor: 'var(--drawer-header-bg, var(--drawer-bg))',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: '#00C853',
+                boxShadow: '0 0 8px #00C853',
+              }}
+            />
+            <h2 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              {getTitle()}
+            </h2>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={closeSlideOver}
+            className="h-8 w-8 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Content */}
         <ScrollArea className="h-[calc(100%-57px)]">
-          <div className="p-4 min-w-0 overflow-x-hidden">
+          <div className="p-5 min-w-0 overflow-x-hidden text-foreground">
             {renderContent()}
           </div>
         </ScrollArea>
