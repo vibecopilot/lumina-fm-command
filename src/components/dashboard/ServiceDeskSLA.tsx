@@ -12,6 +12,8 @@ import {
   AlertCircle,
   HelpCircle,
   TrendingUp,
+  Search,
+  X,
 } from 'lucide-react';
 import {
   BarChart,
@@ -144,6 +146,7 @@ export function ServiceDeskSLA() {
 
   const [chartType, setChartType] = useState<ChartType>('Vertical Bar');
   const [topN, setTopN] = useState<TopNOption>('Top 5');
+  const [searchQuery, setSearchQuery] = useState('');
   const [chartTypeDropdownOpen, setChartTypeDropdownOpen] = useState(false);
   const [topNDropdownOpen, setTopNDropdownOpen] = useState(false);
   const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
@@ -356,7 +359,67 @@ export function ServiceDeskSLA() {
         </div>
       </div>
 
-      {/* Top 4 Metric KPI Cards */}
+      {/* Search Input for Ticket Cards */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+          marginBottom: '14px',
+        }}
+      >
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', maxWidth: '380px' }}>
+          <Search
+            size={14}
+            style={{
+              position: 'absolute',
+              left: '12px',
+              color: 'var(--text-muted)',
+              pointerEvents: 'none',
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Search ticket cards (Total, Open, In Progress, Closed)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '6px 30px 6px 32px',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--glass-bg)',
+              color: 'var(--text-primary)',
+              outline: 'none',
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Top 4 Metric KPI Cards (Zero cards hidden by default, visible on search) */}
       <div
         style={{
           display: 'grid',
@@ -365,101 +428,113 @@ export function ServiceDeskSLA() {
           marginBottom: '16px',
         }}
       >
-        {/* Total Tickets */}
-        <div
-          onClick={() => openSlideOver('drill_ticket', { type: 'status', value: 'all' } as never)}
-          className="glass-card glass-card-lift"
-          style={{
-            padding: '16px 20px',
-            background: 'linear-gradient(135deg, rgba(255, 91, 34, 0.9) 0%, rgba(194, 65, 12, 0.95) 100%)',
-            border: '1px solid rgba(255, 91, 34, 0.4)',
-            boxShadow: '0 8px 24px rgba(255, 91, 34, 0.25)',
-            color: '#FFFFFF',
-            cursor: 'pointer',
-            borderRadius: '12px',
-          }}
-          title="Click to inspect all tickets"
-        >
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
-            Total Tickets
-          </span>
-          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
-            {total.toLocaleString()}
-          </div>
-          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>All logged requests • Click to drill</span>
-        </div>
+        {(() => {
+          const cards = [
+            {
+              id: 'total',
+              title: 'Total Tickets',
+              value: total,
+              displayValue: total.toLocaleString(),
+              subtitle: 'All logged requests • Click to drill',
+              bgGrad: 'linear-gradient(135deg, rgba(255, 91, 34, 0.9) 0%, rgba(194, 65, 12, 0.95) 100%)',
+              border: 'rgba(255, 91, 34, 0.4)',
+              shadow: 'rgba(255, 91, 34, 0.25)',
+              onClick: () => openSlideOver('drill_ticket', { type: 'status', value: 'all' } as never),
+            },
+            {
+              id: 'open',
+              title: 'Open',
+              value: open,
+              displayValue: open.toLocaleString(),
+              subtitle: 'Awaiting assignment • Click to drill',
+              bgGrad: 'linear-gradient(135deg, rgba(124, 58, 237, 0.85) 0%, rgba(76, 29, 149, 0.95) 100%)',
+              border: 'rgba(139, 92, 246, 0.4)',
+              shadow: 'rgba(124, 58, 237, 0.25)',
+              onClick: () => openSlideOver('drill_ticket', { type: 'status', value: 'open' } as never),
+            },
+            {
+              id: 'in_progress',
+              title: 'In Progress',
+              value: inProgress,
+              displayValue: inProgress.toLocaleString(),
+              subtitle: 'Active work underway • Click to drill',
+              bgGrad: 'linear-gradient(135deg, rgba(217, 119, 6, 0.85) 0%, rgba(180, 83, 9, 0.95) 100%)',
+              border: 'rgba(245, 158, 11, 0.4)',
+              shadow: 'rgba(217, 119, 6, 0.25)',
+              onClick: () => openSlideOver('drill_ticket', { type: 'status', value: 'in_progress' } as never),
+            },
+            {
+              id: 'closed',
+              title: 'Closed',
+              value: closed,
+              displayValue: closed.toLocaleString(),
+              subtitle: 'Resolved & verified • Click to drill',
+              bgGrad: 'linear-gradient(135deg, rgba(0, 200, 83, 0.85) 0%, rgba(4, 120, 87, 0.95) 100%)',
+              border: 'rgba(0, 200, 83, 0.4)',
+              shadow: 'rgba(0, 200, 83, 0.25)',
+              onClick: () => openSlideOver('drill_ticket', { type: 'status', value: 'closed' } as never),
+            },
+          ];
 
-        {/* Open */}
-        <div
-          onClick={() => openSlideOver('drill_ticket', { type: 'status', value: 'open' } as never)}
-          className="glass-card glass-card-lift"
-          style={{
-            padding: '16px 20px',
-            background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.85) 0%, rgba(76, 29, 149, 0.95) 100%)',
-            border: '1px solid rgba(139, 92, 246, 0.4)',
-            boxShadow: '0 8px 24px rgba(124, 58, 237, 0.25)',
-            color: '#FFFFFF',
-            cursor: 'pointer',
-            borderRadius: '12px',
-          }}
-          title="Click to inspect open tickets"
-        >
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
-            Open
-          </span>
-          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
-            {open.toLocaleString()}
-          </div>
-          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>Awaiting assignment • Click to drill</span>
-        </div>
+          const q = searchQuery.toLowerCase().trim();
+          const visibleCards = !q
+            ? cards.filter((c) => c.value > 0)
+            : cards.filter((c) => c.title.toLowerCase().includes(q) || c.subtitle.toLowerCase().includes(q) || c.id.includes(q));
 
-        {/* In Progress */}
-        <div
-          onClick={() => openSlideOver('drill_ticket', { type: 'status', value: 'in_progress' } as never)}
-          className="glass-card glass-card-lift"
-          style={{
-            padding: '16px 20px',
-            background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.85) 0%, rgba(180, 83, 9, 0.95) 100%)',
-            border: '1px solid rgba(245, 158, 11, 0.4)',
-            boxShadow: '0 8px 24px rgba(217, 119, 6, 0.25)',
-            color: '#FFFFFF',
-            cursor: 'pointer',
-            borderRadius: '12px',
-          }}
-          title="Click to inspect in-progress tickets"
-        >
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
-            In Progress
-          </span>
-          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
-            {inProgress.toLocaleString()}
-          </div>
-          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>Active work underway • Click to drill</span>
-        </div>
+          if (visibleCards.length === 0) {
+            return (
+              <div
+                className="glass-card"
+                style={{
+                  gridColumn: '1 / -1',
+                  padding: '16px 20px',
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                {searchQuery.trim()
+                  ? `No ticket cards match "${searchQuery.trim()}".`
+                  : 'All ticket status cards currently display 0.'}
+              </div>
+            );
+          }
 
-        {/* Closed */}
-        <div
-          onClick={() => openSlideOver('drill_ticket', { type: 'status', value: 'closed' } as never)}
-          className="glass-card glass-card-lift"
-          style={{
-            padding: '16px 20px',
-            background: 'linear-gradient(135deg, rgba(0, 200, 83, 0.85) 0%, rgba(4, 120, 87, 0.95) 100%)',
-            border: '1px solid rgba(0, 200, 83, 0.4)',
-            boxShadow: '0 8px 24px rgba(0, 200, 83, 0.25)',
-            color: '#FFFFFF',
-            cursor: 'pointer',
-            borderRadius: '12px',
-          }}
-          title="Click to inspect closed tickets"
-        >
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
-            Closed
-          </span>
-          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
-            {closed.toLocaleString()}
-          </div>
-          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>Resolved & verified • Click to drill</span>
-        </div>
+          return visibleCards.map((card) => (
+            <div
+              key={card.id}
+              onClick={card.onClick}
+              className="glass-card glass-card-lift"
+              style={{
+                padding: '16px 20px',
+                background: card.bgGrad,
+                border: `1px solid ${card.border}`,
+                boxShadow: `0 8px 24px ${card.shadow}`,
+                color: '#FFFFFF',
+                cursor: 'pointer',
+                borderRadius: '12px',
+              }}
+              title={`Click to inspect ${card.title}`}
+            >
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  opacity: 0.9,
+                }}
+              >
+                {card.title}
+              </span>
+              <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
+                {card.displayValue}
+              </div>
+              <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>{card.subtitle}</span>
+            </div>
+          ));
+        })()}
       </div>
 
       {/* 3 Large Analytical Cards */}

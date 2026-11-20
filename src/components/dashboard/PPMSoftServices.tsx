@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Check,
   Search,
+  X,
   Sparkles,
   BarChart2,
   ListFilter,
@@ -71,6 +72,7 @@ export function PPMSoftServices() {
   const [topNDropdownOpen, setTopNDropdownOpen] = useState(false);
   const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [cardSearchQuery, setCardSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'highest' | 'lowest' | 'alphabetical'>('highest');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
 
@@ -378,7 +380,67 @@ export function PPMSoftServices() {
         </div>
       </div>
 
-      {/* 4 Top Metric KPI Cards */}
+      {/* Search Input for Maintenance Cards */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+          marginBottom: '14px',
+        }}
+      >
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', maxWidth: '380px' }}>
+          <Search
+            size={14}
+            style={{
+              position: 'absolute',
+              left: '12px',
+              color: 'var(--text-muted)',
+              pointerEvents: 'none',
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Search maintenance cards (Compliance, Completed, Pending, Overdue)..."
+            value={cardSearchQuery}
+            onChange={(e) => setCardSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '6px 30px 6px 32px',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--glass-bg)',
+              color: 'var(--text-primary)',
+              outline: 'none',
+            }}
+          />
+          {cardSearchQuery && (
+            <button
+              type="button"
+              onClick={() => setCardSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 4 Top Metric KPI Cards (Zero cards hidden by default, visible on search) */}
       <div
         style={{
           display: 'grid',
@@ -387,105 +449,115 @@ export function PPMSoftServices() {
           marginBottom: '16px',
         }}
       >
-        {/* Compliance Rate */}
-        <div
-          onClick={() => openSlideOver(mode === 'soft_services' ? 'drill_soft_services' : 'drill_ppm')}
-          className="glass-card glass-card-lift"
-          style={{
-            padding: '16px 20px',
-            background: mode === 'ppm'
-              ? 'linear-gradient(135deg, rgba(0, 200, 83, 0.9) 0%, rgba(4, 120, 87, 0.95) 100%)'
-              : 'linear-gradient(135deg, rgba(255, 91, 34, 0.9) 0%, rgba(194, 65, 12, 0.95) 100%)',
-            border: `1px solid ${mode === 'ppm' ? 'rgba(0, 200, 83, 0.4)' : 'rgba(255, 91, 34, 0.4)'}`,
-            boxShadow: `0 8px 24px ${mode === 'ppm' ? 'rgba(0, 200, 83, 0.25)' : 'rgba(255, 91, 34, 0.25)'}`,
-            color: '#FFFFFF',
-            cursor: 'pointer',
-            borderRadius: '12px',
-          }}
-          title="Click to inspect compliance audit"
-        >
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
-            {mode === 'ppm' ? 'PPM Compliance' : 'Soft Services Compliance'}
-          </span>
-          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
-            {activeStats.compliance.toFixed(1)}%
-          </div>
-          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>
-            {activeStats.compliance >= 90 ? 'High performing' : 'Requires escalation'} • Click to drill
-          </span>
-        </div>
+        {(() => {
+          const cards = [
+            {
+              id: 'compliance',
+              title: mode === 'ppm' ? 'PPM Compliance' : 'Soft Services Compliance',
+              value: activeStats.compliance,
+              displayValue: `${activeStats.compliance.toFixed(1)}%`,
+              subtitle: activeStats.compliance >= 90 ? 'High performing • Click to drill' : 'Requires escalation • Click to drill',
+              bgGrad: mode === 'ppm'
+                ? 'linear-gradient(135deg, rgba(0, 200, 83, 0.9) 0%, rgba(4, 120, 87, 0.95) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 91, 34, 0.9) 0%, rgba(194, 65, 12, 0.95) 100%)',
+              border: mode === 'ppm' ? 'rgba(0, 200, 83, 0.4)' : 'rgba(255, 91, 34, 0.4)',
+              shadow: mode === 'ppm' ? 'rgba(0, 200, 83, 0.25)' : 'rgba(255, 91, 34, 0.25)',
+              onClick: () => openSlideOver(mode === 'soft_services' ? 'drill_soft_services' : 'drill_ppm'),
+            },
+            {
+              id: 'completed',
+              title: 'Completed Tasks',
+              value: activeStats.completed,
+              displayValue: activeStats.completed.toLocaleString(),
+              subtitle: 'Successfully verified • Click to drill',
+              bgGrad: 'linear-gradient(135deg, rgba(16, 185, 129, 0.85) 0%, rgba(5, 150, 105, 0.95) 100%)',
+              border: 'rgba(16, 185, 129, 0.4)',
+              shadow: 'rgba(16, 185, 129, 0.25)',
+              onClick: () => openSlideOver(mode === 'soft_services' ? 'drill_soft_services' : 'drill_ppm', { status: 'completed' } as never),
+            },
+            {
+              id: 'pending',
+              title: 'Pending Tasks',
+              value: activeStats.pending,
+              displayValue: activeStats.pending.toLocaleString(),
+              subtitle: 'Within schedule • Click to drill',
+              bgGrad: 'linear-gradient(135deg, rgba(217, 119, 6, 0.85) 0%, rgba(180, 83, 9, 0.95) 100%)',
+              border: 'rgba(245, 158, 11, 0.4)',
+              shadow: 'rgba(217, 119, 6, 0.25)',
+              onClick: () => openSlideOver(mode === 'soft_services' ? 'drill_soft_services' : 'drill_ppm', { status: 'pending' } as never),
+            },
+            {
+              id: 'overdue',
+              title: 'Overdue Tasks',
+              value: activeStats.overdue,
+              displayValue: activeStats.overdue.toLocaleString(),
+              subtitle: 'Requires immediate intervention',
+              bgGrad: 'linear-gradient(135deg, rgba(239, 68, 68, 0.85) 0%, rgba(185, 28, 28, 0.95) 100%)',
+              border: 'rgba(239, 68, 68, 0.4)',
+              shadow: 'rgba(239, 68, 68, 0.25)',
+              onClick: () => openSlideOver(mode === 'soft_services' ? 'drill_soft_services' : 'drill_ppm', { status: 'overdue' } as never),
+            },
+          ];
 
-        {/* Completed */}
-        <div
-          onClick={() => openSlideOver(mode === 'soft_services' ? 'drill_soft_services' : 'drill_ppm', { status: 'completed' } as never)}
-          className="glass-card glass-card-lift"
-          style={{
-            padding: '16px 20px',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.85) 0%, rgba(5, 150, 105, 0.95) 100%)',
-            border: '1px solid rgba(16, 185, 129, 0.4)',
-            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.25)',
-            color: '#FFFFFF',
-            cursor: 'pointer',
-            borderRadius: '12px',
-          }}
-          title="Click to inspect completed tasks"
-        >
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
-            Completed Tasks
-          </span>
-          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
-            {activeStats.completed.toLocaleString()}
-          </div>
-          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>Successfully verified • Click to drill</span>
-        </div>
+          const q = cardSearchQuery.toLowerCase().trim();
+          const visibleCards = !q
+            ? cards.filter((c) => c.value > 0)
+            : cards.filter((c) => c.title.toLowerCase().includes(q) || c.subtitle.toLowerCase().includes(q) || c.id.includes(q));
 
-        {/* Pending */}
-        <div
-          onClick={() => openSlideOver(mode === 'soft_services' ? 'drill_soft_services' : 'drill_ppm', { status: 'pending' } as never)}
-          className="glass-card glass-card-lift"
-          style={{
-            padding: '16px 20px',
-            background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.85) 0%, rgba(180, 83, 9, 0.95) 100%)',
-            border: '1px solid rgba(245, 158, 11, 0.4)',
-            boxShadow: '0 8px 24px rgba(217, 119, 6, 0.25)',
-            color: '#FFFFFF',
-            cursor: 'pointer',
-            borderRadius: '12px',
-          }}
-          title="Click to inspect pending tasks"
-        >
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
-            Pending Tasks
-          </span>
-          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
-            {activeStats.pending.toLocaleString()}
-          </div>
-          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>Within schedule • Click to drill</span>
-        </div>
+          if (visibleCards.length === 0) {
+            return (
+              <div
+                className="glass-card"
+                style={{
+                  gridColumn: '1 / -1',
+                  padding: '16px 20px',
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                {cardSearchQuery.trim()
+                  ? `No maintenance cards match "${cardSearchQuery.trim()}".`
+                  : 'All maintenance task cards currently display 0.'}
+              </div>
+            );
+          }
 
-        {/* Overdue */}
-        <div
-          onClick={() => openSlideOver(mode === 'soft_services' ? 'drill_soft_services' : 'drill_ppm', { status: 'overdue' } as never)}
-          className="glass-card glass-card-lift"
-          style={{
-            padding: '16px 20px',
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.85) 0%, rgba(185, 28, 28, 0.95) 100%)',
-            border: '1px solid rgba(239, 68, 68, 0.4)',
-            boxShadow: '0 8px 24px rgba(239, 68, 68, 0.25)',
-            color: '#FFFFFF',
-            cursor: 'pointer',
-            borderRadius: '12px',
-          }}
-          title="Click to inspect overdue tasks"
-        >
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
-            Overdue Tasks
-          </span>
-          <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
-            {activeStats.overdue.toLocaleString()}
-          </div>
-          <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>Requires immediate intervention</span>
-        </div>
+          return visibleCards.map((card) => (
+            <div
+              key={card.id}
+              onClick={card.onClick}
+              className="glass-card glass-card-lift"
+              style={{
+                padding: '16px 20px',
+                background: card.bgGrad,
+                border: `1px solid ${card.border}`,
+                boxShadow: `0 8px 24px ${card.shadow}`,
+                color: '#FFFFFF',
+                cursor: 'pointer',
+                borderRadius: '12px',
+              }}
+              title={`Click to inspect ${card.title}`}
+            >
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  opacity: 0.9,
+                }}
+              >
+                {card.title}
+              </span>
+              <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
+                {card.displayValue}
+              </div>
+              <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>{card.subtitle}</span>
+            </div>
+          ));
+        })()}
       </div>
 
       {/* 2 Large Analytic Cards */}
