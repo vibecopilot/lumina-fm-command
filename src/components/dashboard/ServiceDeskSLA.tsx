@@ -419,15 +419,8 @@ export function ServiceDeskSLA() {
         </div>
       </div>
 
-      {/* Top 4 Metric KPI Cards (Zero cards hidden by default, visible on search) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '14px',
-          marginBottom: '16px',
-        }}
-      >
+      {/* Top Metric KPI Cards (Zero cards hidden by default, visible on search) */}
+      <div style={{ marginBottom: '16px' }}>
         {(() => {
           const cards = [
             {
@@ -486,7 +479,6 @@ export function ServiceDeskSLA() {
               <div
                 className="glass-card"
                 style={{
-                  gridColumn: '1 / -1',
                   padding: '16px 20px',
                   borderRadius: '12px',
                   textAlign: 'center',
@@ -501,39 +493,117 @@ export function ServiceDeskSLA() {
             );
           }
 
-          return visibleCards.map((card) => (
-            <div
-              key={card.id}
-              onClick={card.onClick}
-              className="glass-card glass-card-lift"
-              style={{
-                padding: '16px 20px',
-                background: card.bgGrad,
-                border: `1px solid ${card.border}`,
-                boxShadow: `0 8px 24px ${card.shadow}`,
-                color: '#FFFFFF',
-                cursor: 'pointer',
-                borderRadius: '12px',
-              }}
-              title={`Click to inspect ${card.title}`}
-            >
-              <span
-                style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  opacity: 0.9,
-                }}
-              >
-                {card.title}
-              </span>
-              <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
-                {card.displayValue}
-              </div>
-              <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>{card.subtitle}</span>
+          const totalCard = visibleCards.find((c) => c.id === 'total');
+          const otherCards = visibleCards.filter((c) => c.id !== 'total');
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+              {/* Centered Compact Total Tickets Card */}
+              {totalCard && (
+                <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                  <div
+                    onClick={totalCard.onClick}
+                    className="glass-card glass-card-lift"
+                    style={{
+                      width: '100%',
+                      maxWidth: '38%',
+                      minWidth: 'min(100%, 300px)',
+                      padding: '12px 20px',
+                      background: totalCard.bgGrad,
+                      border: `1px solid ${totalCard.border}`,
+                      boxShadow: `0 8px 24px ${totalCard.shadow}`,
+                      color: '#FFFFFF',
+                      cursor: 'pointer',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      textAlign: 'center',
+                    }}
+                    title={`Click to inspect ${totalCard.title}`}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        opacity: 0.9,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {totalCard.title}
+                    </span>
+                    <div
+                      style={{
+                        fontSize: '1.875rem',
+                        fontWeight: 900,
+                        lineHeight: 1.1,
+                        margin: '4px 0 2px 0',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {totalCard.displayValue}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.6875rem',
+                        opacity: 0.85,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {totalCard.subtitle}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Other Ticket Status Cards Grid (if visible) */}
+              {otherCards.length > 0 && (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: '14px',
+                  }}
+                >
+                  {otherCards.map((card) => (
+                    <div
+                      key={card.id}
+                      onClick={card.onClick}
+                      className="glass-card glass-card-lift"
+                      style={{
+                        padding: '16px 20px',
+                        background: card.bgGrad,
+                        border: `1px solid ${card.border}`,
+                        boxShadow: `0 8px 24px ${card.shadow}`,
+                        color: '#FFFFFF',
+                        cursor: 'pointer',
+                        borderRadius: '12px',
+                      }}
+                      title={`Click to inspect ${card.title}`}
+                    >
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                          opacity: 0.9,
+                        }}
+                      >
+                        {card.title}
+                      </span>
+                      <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
+                        {card.displayValue}
+                      </div>
+                      <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>{card.subtitle}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ));
+          );
         })()}
       </div>
 
