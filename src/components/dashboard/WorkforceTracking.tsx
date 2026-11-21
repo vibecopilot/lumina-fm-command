@@ -13,6 +13,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   ShieldAlert,
+  Search,
+  X,
 } from 'lucide-react';
 import {
   BarChart,
@@ -153,6 +155,7 @@ export function WorkforceTracking() {
   const [vendorChartType, setVendorChartType] = useState<ChartType>('Donut');
   const [roleChartType, setRoleChartType] = useState<ChartType>('Area');
   const [roleTopN, setRoleTopN] = useState<TopNOption>('Top 5');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [roleChartDropdownOpen, setRoleChartDropdownOpen] = useState(false);
@@ -414,133 +417,239 @@ export function WorkforceTracking() {
           alignItems: 'stretch',
         }}
       >
-        {/* Column 1: Availability Meters & Counts */}
+        {/* Column 1: Availability Meters & Counts (Zero cards hidden by default, visible on search) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
-          {/* Overall Availability Card */}
-          <div
-            onClick={() => openSlideOver('kpi_workforce')}
-            className="glass-card glass-card-lift"
-            style={{
-              padding: '20px 22px',
-              borderRadius: '12px',
-              flex: '1.2 1 0',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-            title="Click to inspect workforce availability"
-          >
-            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '8px' }}>
-              Overall Availability
-            </div>
-            <div
+          {/* In-Column Search Input */}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+            <Search
+              size={14}
               style={{
-                fontSize: '2.5rem',
-                fontWeight: 800,
-                color: isLowAvailability ? '#EF4444' : '#00E676',
-                lineHeight: 1,
-                marginBottom: '14px',
+                position: 'absolute',
+                left: '12px',
+                color: 'var(--text-muted)',
+                pointerEvents: 'none',
               }}
-            >
-              {overallAvailability.toFixed(1)}%
-            </div>
-            <div
+            />
+            <input
+              type="text"
+              placeholder="Search workforce cards (Availability, Present, Absent, Total)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               style={{
-                height: '7px',
                 width: '100%',
-                backgroundColor: 'var(--border-color)',
-                borderRadius: '4px',
-                overflow: 'hidden',
+                padding: '6px 30px 6px 32px',
+                fontSize: '0.8125rem',
+                fontWeight: 500,
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--glass-bg)',
+                color: 'var(--text-primary)',
+                outline: 'none',
               }}
-            >
-              <div
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
                 style={{
-                  height: '100%',
-                  width: `${Math.min(Math.max(overallAvailability, 0), 100)}%`,
-                  backgroundColor: isLowAvailability ? '#EF4444' : '#00E676',
-                  borderRadius: '4px',
-                  transition: 'width 0.8s ease',
+                  position: 'absolute',
+                  right: '10px',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
-              />
-            </div>
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
 
-          {/* Present vs Absent Mini Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', flex: '1 1 0' }}>
-            {/* Present */}
-            <div
-              onClick={() => openSlideOver('drill_workforce', { attendance: 'present' } as never)}
-              className="glass-card glass-card-lift"
-              style={{
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                borderRadius: '10px',
-                padding: '16px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-              title="Click to inspect present personnel"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#16A34A', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px' }}>
-                <UserCheck size={16} />
-                <span>Present</span>
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
-                {present.toLocaleString()}
-              </div>
-            </div>
+          {(() => {
+            const q = searchQuery.toLowerCase().trim();
+            const shouldShow = (title: string, value: number, id: string) => {
+              if (q) {
+                return title.toLowerCase().includes(q) || id.includes(q);
+              }
+              return value > 0;
+            };
 
-            {/* Absent */}
-            <div
-              onClick={() => openSlideOver('drill_workforce', { attendance: 'absent' } as never)}
-              className="glass-card glass-card-lift"
-              style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
-                borderRadius: '10px',
-                padding: '16px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-              title="Click to inspect absent personnel"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#EF4444', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px' }}>
-                <UserX size={16} />
-                <span>Absent</span>
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
-                {absent.toLocaleString()}
-              </div>
-            </div>
-          </div>
+            const showAvailability = shouldShow('Overall Availability', overallAvailability, 'availability');
+            const showPresent = shouldShow('Present', present, 'present');
+            const showAbsent = shouldShow('Absent', absent, 'absent');
+            const showTotal = shouldShow('Total Workforce', totalEmployees, 'total');
 
-          {/* Total Workforce Box */}
-          <div
-            onClick={() => openSlideOver('drill_workforce', {} as never)}
-            className="glass-card glass-card-lift"
-            style={{
-              borderRadius: '10px',
-              padding: '16px 20px',
-              flex: '1 1 0',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-            title="Click to inspect all staff records"
-          >
-            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '6px' }}>
-              Total Workforce
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
-              {totalEmployees.toLocaleString()}
-            </div>
-          </div>
+            const hasAnyVisible = showAvailability || showPresent || showAbsent || showTotal;
+
+            if (!hasAnyVisible) {
+              return (
+                <div
+                  className="glass-card"
+                  style={{
+                    padding: '24px 20px',
+                    borderRadius: '12px',
+                    textAlign: 'center',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.8125rem',
+                  }}
+                >
+                  {searchQuery.trim()
+                    ? `No workforce cards match "${searchQuery.trim()}".`
+                    : 'All workforce metric cards currently display 0.'}
+                </div>
+              );
+            }
+
+            return (
+              <>
+                {/* Overall Availability Card */}
+                {showAvailability && (
+                  <div
+                    onClick={() => openSlideOver('kpi_workforce')}
+                    className="glass-card glass-card-lift"
+                    style={{
+                      padding: '20px 22px',
+                      borderRadius: '12px',
+                      flex: '1.2 1 0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                    title="Click to inspect workforce availability"
+                  >
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '8px' }}>
+                      Overall Availability
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '2.5rem',
+                        fontWeight: 800,
+                        color: isLowAvailability ? '#EF4444' : '#00E676',
+                        lineHeight: 1,
+                        marginBottom: '14px',
+                      }}
+                    >
+                      {overallAvailability.toFixed(1)}%
+                    </div>
+                    <div
+                      style={{
+                        height: '7px',
+                        width: '100%',
+                        backgroundColor: 'var(--border-color)',
+                        borderRadius: '4px',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${Math.min(Math.max(overallAvailability, 0), 100)}%`,
+                          backgroundColor: isLowAvailability ? '#EF4444' : '#00E676',
+                          borderRadius: '4px',
+                          transition: 'width 0.8s ease',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Present vs Absent Mini Grid */}
+                {(showPresent || showAbsent) && (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: showPresent && showAbsent ? '1fr 1fr' : '1fr',
+                      gap: '12px',
+                      flex: '1 1 0',
+                    }}
+                  >
+                    {/* Present */}
+                    {showPresent && (
+                      <div
+                        onClick={() => openSlideOver('drill_workforce', { attendance: 'present' } as never)}
+                        className="glass-card glass-card-lift"
+                        style={{
+                          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                          border: '1px solid rgba(16, 185, 129, 0.25)',
+                          borderRadius: '10px',
+                          padding: '16px 14px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                        }}
+                        title="Click to inspect present personnel"
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#16A34A', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px' }}>
+                          <UserCheck size={16} />
+                          <span>Present</span>
+                        </div>
+                        <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
+                          {present.toLocaleString()}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Absent */}
+                    {showAbsent && (
+                      <div
+                        onClick={() => openSlideOver('drill_workforce', { attendance: 'absent' } as never)}
+                        className="glass-card glass-card-lift"
+                        style={{
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          borderRadius: '10px',
+                          padding: '16px 14px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                        }}
+                        title="Click to inspect absent personnel"
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#EF4444', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '6px' }}>
+                          <UserX size={16} />
+                          <span>Absent</span>
+                        </div>
+                        <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
+                          {absent.toLocaleString()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Total Workforce Box */}
+                {showTotal && (
+                  <div
+                    onClick={() => openSlideOver('drill_workforce', {} as never)}
+                    className="glass-card glass-card-lift"
+                    style={{
+                      borderRadius: '10px',
+                      padding: '16px 20px',
+                      flex: '1 1 0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                    title="Click to inspect all staff records"
+                  >
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '6px' }}>
+                      Total Workforce
+                    </div>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
+                      {totalEmployees.toLocaleString()}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Column 2: Attendance by Vendor */}

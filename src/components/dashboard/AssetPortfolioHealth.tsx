@@ -6,6 +6,8 @@ import {
   Wrench,
   ChevronRight,
   Cpu,
+  Search,
+  X,
   CheckCircle2,
   AlertTriangle,
   Flame,
@@ -86,6 +88,65 @@ export function AssetPortfolioHealth() {
     ],
     [summary]
   );
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const assetCards = useMemo(() => [
+    {
+      id: 'total',
+      title: 'Total Assets',
+      value: summary.total,
+      displayValue: summary.total.toLocaleString(),
+      subtitle: 'All deployed inventory units',
+      bgGrad: 'linear-gradient(135deg, rgba(59, 130, 246, 0.85) 0%, rgba(29, 78, 216, 0.95) 100%)',
+      border: 'rgba(59, 130, 246, 0.4)',
+      shadow: 'rgba(59, 130, 246, 0.25)',
+      onClick: () => handleDrill('ALL'),
+    },
+    {
+      id: 'operational',
+      title: 'Operational Units',
+      value: summary.operational,
+      displayValue: summary.operational.toLocaleString(),
+      subtitle: `${summary.health_percentage.toFixed(1)}% healthy runtime`,
+      bgGrad: 'linear-gradient(135deg, rgba(0, 200, 83, 0.85) 0%, rgba(4, 120, 87, 0.95) 100%)',
+      border: 'rgba(0, 200, 83, 0.4)',
+      shadow: 'rgba(0, 200, 83, 0.25)',
+      onClick: () => handleDrill('OPERATIONAL'),
+    },
+    {
+      id: 'maintenance',
+      title: 'Under Maintenance',
+      value: summary.maintenance,
+      displayValue: summary.maintenance.toLocaleString(),
+      subtitle: 'Active breakdown / repair',
+      bgGrad: 'linear-gradient(135deg, rgba(245, 158, 11, 0.85) 0%, rgba(180, 83, 9, 0.95) 100%)',
+      border: 'rgba(245, 158, 11, 0.4)',
+      shadow: 'rgba(245, 158, 11, 0.25)',
+      onClick: () => handleDrill('BREAKDOWN'),
+    },
+    {
+      id: 'critical',
+      title: 'Critical Attention',
+      value: summary.critical,
+      displayValue: summary.critical.toLocaleString(),
+      subtitle: 'High risk asset alerts',
+      bgGrad: 'linear-gradient(135deg, rgba(239, 68, 68, 0.85) 0%, rgba(185, 28, 28, 0.95) 100%)',
+      border: 'rgba(239, 68, 68, 0.4)',
+      shadow: 'rgba(239, 68, 68, 0.25)',
+      onClick: () => handleDrill('BREAKDOWN'),
+    },
+  ], [summary]);
+
+  const visibleAssetCards = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) {
+      return assetCards.filter((c) => c.value > 0);
+    }
+    return assetCards.filter((c) =>
+      c.title.toLowerCase().includes(q) || c.subtitle.toLowerCase().includes(q) || c.id.includes(q)
+    );
+  }, [assetCards, searchQuery]);
 
   const handleDrill = (tab?: 'ALL' | 'OPERATIONAL' | 'BREAKDOWN', categoryName?: string) => {
     const status = tab === 'OPERATIONAL' ? 'operational' : tab === 'BREAKDOWN' ? 'maintenance' : undefined;
@@ -225,6 +286,128 @@ export function AssetPortfolioHealth() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Search Bar for Asset Metric Cards */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+          marginBottom: '14px',
+        }}
+      >
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', maxWidth: '380px' }}>
+          <Search
+            size={14}
+            style={{
+              position: 'absolute',
+              left: '12px',
+              color: 'var(--text-muted)',
+              pointerEvents: 'none',
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Search asset cards (Total, Operational, Breakdown, Critical)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '6px 30px 6px 32px',
+              fontSize: '0.8125rem',
+              fontWeight: 500,
+              borderRadius: '8px',
+              border: '1px solid var(--glass-border)',
+              backgroundColor: 'var(--glass-bg)',
+              color: 'var(--text-main)',
+              outline: 'none',
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Asset Metric Cards (Zero hidden by default, shown when searched) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '14px',
+          marginBottom: '16px',
+        }}
+      >
+        {visibleAssetCards.length === 0 ? (
+          <div
+            className="glass-card"
+            style={{
+              gridColumn: '1 / -1',
+              padding: '16px 20px',
+              borderRadius: '12px',
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              fontSize: '0.8125rem',
+            }}
+          >
+            {searchQuery.trim()
+              ? `No asset cards match "${searchQuery.trim()}".`
+              : 'All asset metrics currently display 0.'}
+          </div>
+        ) : (
+          visibleAssetCards.map((card) => (
+            <div
+              key={card.id}
+              onClick={card.onClick}
+              className="glass-card glass-card-lift"
+              style={{
+                padding: '16px 20px',
+                background: card.bgGrad,
+                border: `1px solid ${card.border}`,
+                boxShadow: `0 8px 24px ${card.shadow}`,
+                color: '#FFFFFF',
+                cursor: 'pointer',
+                borderRadius: '12px',
+              }}
+              title={`Click to inspect ${card.title}`}
+            >
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  opacity: 0.9,
+                }}
+              >
+                {card.title}
+              </span>
+              <div style={{ fontSize: '2rem', fontWeight: 900, lineHeight: 1.1, margin: '6px 0 2px 0' }}>
+                {card.displayValue}
+              </div>
+              <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>{card.subtitle}</span>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Two Column Cards Grid */}
